@@ -1,0 +1,63 @@
+{% extends "shared/base.html" %}
+{% block title %}संपादित करें User{% endblock %}
+{% block page_title %}संपादित करें User Details{% endblock %}
+{% block sidebar_nav %}
+<div class="nav-section-title">Management</div>
+<a href="{{ url_for('master.dashboard') }}" class="nav-item"><i class="fas fa-gauge nav-icon"></i> डैशबोर्ड</a>
+<a href="{{ url_for('master.super_admins') }}" class="nav-item active"><i class="fas fa-user-shield nav-icon"></i> Super Admins</a>
+<a href="{{ url_for('master.all_admins') }}" class="nav-item"><i class="fas fa-users nav-icon"></i> All Admins</a>
+<a href="{{ url_for('master.logs') }}" class="nav-item"><i class="fas fa-list-check nav-icon"></i> Activity Logs</a>
+{% endblock %}
+{% block content %}
+<div style="max-width:700px;margin:0 auto">
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-pen" style="color:var(--warning)"></i> संपादित करें: {{ user.name }}</span>
+    <a href="{{ url_for('master.super_admins') }}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> वापस</a>
+  </div>
+  <div class="card-body">
+    <div style="background:var(--bg);border-radius:8px;padding:12px;margin-bottom:20px;font-size:.82rem">
+      <i class="fas fa-info-circle" style="color:var(--info)"></i>
+      यूज़र ID <strong>{{ user.user_id }}</strong> — भूमिका: <span class="badge badge-{{ 'super' if user.role=='super_admin' else 'admin' }}">{{ user.role|replace('_',' ')|title }}</span>
+      &nbsp;Note: यूज़र ID cannot be changed.
+    </div>
+    <form method="POST">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full नाम <span class="required">*</span></label>
+          <input type="text" name="name" class="form-control" value="{{ user.name }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">पदनाम</label>
+          <input type="text" name="designation" class="form-control" value="{{ user.designation or '' }}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">संपर्क</label>
+          <input type="text" name="contact" class="form-control" value="{{ user.contact or '' }}" maxlength="15">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ईमेल <span class="required">*</span></label>
+          <input type="email" name="email" class="form-control" value="{{ user.email }}" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">जिला</label>
+          <input type="text" name="district" class="form-control" value="{{ user.district or '' }}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">पता</label>
+        <textarea name="address" class="form-control" rows="2">{{ user.address or '' }}</textarea>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> परिवर्तन सहेजें</button>
+        <a href="{{ url_for('master.super_admins') }}" class="btn btn-outline">रद्द करें</a>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}

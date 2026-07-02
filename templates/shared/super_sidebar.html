@@ -1,0 +1,33 @@
+<div class="nav-section-title">डैशबोर्ड</div>
+<a href="{{ url_for('super.dashboard') }}" class="nav-item {% if request.endpoint=='super.dashboard' %}active{% endif %}">
+  <i class="fas fa-gauge nav-icon"></i> डैशबोर्ड
+</a>
+<div class="nav-section-title">व्यवस्थापक प्रबंधन</div>
+<a href="{{ url_for('super.admins') }}" class="nav-item {% if request.endpoint in ['super.admins','super.create_admin'] %}active{% endif %}">
+  <i class="fas fa-users nav-icon"></i> मेरे व्यवस्थापक
+</a>
+<a href="{{ url_for('super.create_admin') }}" class="nav-item {% if request.endpoint=='super.create_admin' %}active{% endif %}">
+  <i class="fas fa-user-plus nav-icon"></i> व्यवस्थापक जोड़ें
+</a>
+<a href="{{ url_for('super.upload_admins') }}" class="nav-item {% if request.endpoint=='super.upload_admins' %}active{% endif %}">
+  <i class="fas fa-file-csv nav-icon"></i> बल्क अपलोड Admins
+</a>
+<div class="nav-section-title">अभियुक्त प्रबंधन (FIR)</div>
+<a href="{{ url_for('super.accused_list') }}" class="nav-item {% if request.endpoint in ['super.accused_list','super.accused_detail'] %}active{% endif %}">
+  <i class="fas fa-user-group nav-icon"></i> अभियुक्त सूची
+</a>
+<a href="{{ url_for('super.fir_list') }}" class="nav-item {% if request.endpoint in ['super.fir_list','super.fir_detail'] %}active{% endif %}">
+  <i class="fas fa-file-lines nav-icon"></i> FIR सूची
+</a>
+<a href="{{ url_for('super.add_fir') }}" class="nav-item {% if request.endpoint=='super.add_fir' %}active{% endif %}">
+  <i class="fas fa-circle-plus nav-icon"></i> FIR दर्ज करें
+</a>
+<a href="{{ url_for('super.upload_accused') }}" class="nav-item {% if request.endpoint=='super.upload_accused' %}active{% endif %}">
+  <i class="fas fa-file-arrow-up nav-icon"></i> बल्क अपलोड (Excel)
+</a>
+<a href="{{ url_for('super.bailed_accused') }}" class="nav-item {% if request.endpoint=='super.bailed_accused' %}active{% endif %}">
+  <i class="fas fa-scale-balanced nav-icon"></i> अभियुक्त जमानत इतिहास
+</a>
+<a href="{{ url_for('super.notifications') }}" class="nav-item {% if request.endpoint=='super.notifications' %}active{% endif %}">
+  <i class="fas fa-bell nav-icon"></i> सूचनाएं
+</a>

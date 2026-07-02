@@ -1,0 +1,89 @@
+{% extends "shared/base.html" %}
+{% block title %}Activity Logs{% endblock %}
+{% block page_title %}System Activity Logs{% endblock %}
+{% block sidebar_nav %}
+<div class="nav-section-title">Management</div>
+<a href="{{ url_for('master.dashboard') }}" class="nav-item"><i class="fas fa-gauge nav-icon"></i> डैशबोर्ड</a>
+<a href="{{ url_for('master.super_admins') }}" class="nav-item"><i class="fas fa-user-shield nav-icon"></i> Super Admins</a>
+<a href="{{ url_for('master.all_admins') }}" class="nav-item"><i class="fas fa-users nav-icon"></i> All Admins</a>
+<a href="{{ url_for('master.logs') }}" class="nav-item active"><i class="fas fa-list-check nav-icon"></i> Activity Logs</a>
+{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-list-check" style="color:var(--primary)"></i> Activity Logs</span>
+    <span style="font-size:.8rem;color:var(--text-muted)">Total: {{ total }} entries</span>
+  </div>
+  <div class="card-body" style="padding-bottom:0">
+    <form method="GET" class="search-bar" style="margin-bottom:16px;flex-wrap:wrap">
+      <div class="search-input-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" name="search" class="form-control" placeholder="खोजें action, endpoint, user..." value="{{ search }}">
+      </div>
+      <select name="role" class="form-control form-select" style="width:auto">
+        <option value="">All भूमिकाs</option>
+        <option value="master" {% if role_filter=='master' %}selected{% endif %}>Master</option>
+        <option value="super_admin" {% if role_filter=='super_admin' %}selected{% endif %}>Super Admin</option>
+        <option value="admin" {% if role_filter=='admin' %}selected{% endif %}>Admin</option>
+      </select>
+      <select name="per_page" class="form-control form-select" style="width:auto" >
+        {% for n in [20,50,100,200] %}<option value="{{ n }}" {% if per_page==n %}selected{% endif %}>{{ n }} / page</option>{% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+      {% if search or role_filter %}<a href="{{ url_for('master.logs') }}" class="btn btn-outline">साफ़ करें</a>{% endif %}
+    </form>
+  </div>
+  <div class="table-wrap">
+    {% if logs %}
+    <table>
+      <thead>
+        <tr><th>#</th><th>Time</th><th>User</th><th>भूमिका</th><th>कार्रवाई</th><th>Method</th><th>Status</th><th>IP</th></tr>
+      </thead>
+      <tbody>
+        {% for l in logs %}
+        <tr>
+          <td style="color:var(--text-muted);font-size:.75rem">{{ (page-1)*per_page + loop.index }}</td>
+          <td style="font-size:.75rem;white-space:nowrap;color:var(--text-muted)">{{ l.created_at.strftime('%d-%m-%Y %H:%M') if l.created_at else '—' }}</td>
+          <td>
+            <div style="font-size:.82rem;font-weight:600">{{ l.user_name or 'System' }}</div>
+            <div style="font-size:.72rem;color:var(--text-muted)">{{ l.uid or '—' }}</div>
+          </td>
+          <td>
+            <span class="badge badge-{{ 'master' if l.user_role=='master' else ('super' if l.user_role=='super_admin' else 'admin') }}">
+              {{ l.user_role|replace('_',' ')|title if l.user_role else '—' }}
+            </span>
+          </td>
+          <td style="font-size:.82rem;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{{ l.action }}">{{ l.action }}</td>
+          <td>
+            {% if l.method %}
+            <span style="font-size:.72rem;font-weight:700;padding:2px 6px;border-radius:4px;background:{% if l.method=='GET' %}rgba(26,115,232,.1);color:var(--primary){% elif l.method=='POST' %}rgba(40,167,69,.1);color:var(--success){% else %}rgba(255,152,0,.1);color:var(--badge-pending){% endif %}">{{ l.method }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if l.status_code %}
+            <span style="font-size:.75rem;font-weight:600;color:{% if l.status_code < 300 %}var(--success){% elif l.status_code < 400 %}var(--warning){% else %}var(--danger){% endif %}">{{ l.status_code }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td style="font-size:.75rem;color:var(--text-muted)">{{ l.ip_address or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><i class="fas fa-list-check"></i><p>No logs found.</p></div>
+    {% endif %}
+  </div>
+  {% if total_pages > 1 %}
+  <div style="padding:16px 20px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <div class="pagination">
+      <a class="page-btn {% if page==1 %}disabled{% endif %}" href="?page={{ page-1 }}&search={{ search }}&role={{ role_filter }}&per_page={{ per_page }}"><i class="fas fa-chevron-left"></i></a>
+      {% for p in range([1,page-2]|max, [total_pages,page+2]|min + 1) %}
+      <a class="page-btn {% if p==page %}active{% endif %}" href="?page={{ p }}&search={{ search }}&role={{ role_filter }}&per_page={{ per_page }}">{{ p }}</a>
+      {% endfor %}
+      <a class="page-btn {% if page==total_pages %}disabled{% endif %}" href="?page={{ page+1 }}&search={{ search }}&role={{ role_filter }}&per_page={{ per_page }}"><i class="fas fa-chevron-right"></i></a>
+    </div>
+    <span class="page-info">पृष्ठ {{ page }} में से {{ total_pages }} · {{ total }} total</span>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

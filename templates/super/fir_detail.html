@@ -1,0 +1,138 @@
+{% extends "shared/base.html" %}
+{% block title %}FIR {{ fir.fir_number }} — विवरण{% endblock %}
+{% block page_title %}FIR विवरण{% endblock %}
+{% block sidebar_nav %}{% include "shared/super_sidebar.html" %}{% endblock %}
+
+{% block content %}
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+  <a href="{{ url_for('super.fir_list') }}" class="btn btn-outline btn-sm">
+    <i class="fas fa-arrow-left"></i> FIR सूची
+  </a>
+</div>
+
+{# ── FIR Summary Card ── #}
+<div class="card" style="margin-bottom:18px">
+  <div class="card-header">
+    <span class="card-title">
+      <i class="fas fa-file-lines" style="color:var(--primary)"></i>
+      FIR संख्या: <strong>{{ fir.fir_number }}</strong>
+    </span>
+    <span class="badge badge-info">{{ accused_list|length }} अभियुक्त</span>
+  </div>
+  <div class="card-body">
+    <div class="info-grid">
+      <div class="info-item"><label>FIR संख्या</label><span style="font-weight:800;color:var(--primary)">{{ fir.fir_number }}</span></div>
+      <div class="info-item"><label>थाना</label><span>{{ fir.thana }}</span></div>
+      <div class="info-item"><label>जनपद</label><span>{{ fir.district }}</span></div>
+      <div class="info-item"><label>वादी (Complainant)</label><span>{{ fir.complainant or '—' }}</span></div>
+      <div class="info-item"><label>स्थिति</label><span class="badge badge-info">{{ fir.status or '—' }}</span></div>
+      <div class="info-item"><label>कुल अभियुक्त</label><span class="badge badge-bail">{{ fir.total_accused_count }}</span></div>
+      <div class="info-item" style="grid-column:1/-1">
+        <label>लागू धाराएँ (Acts/Sections)</label>
+        <span style="font-size:.88rem;line-height:1.6">{{ fir.acts or '—' }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Accused Breakdown ── #}
+<div class="card" style="margin-bottom:18px">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-users"></i> अभियुक्त विवरण</span>
+  </div>
+
+  {# Legend #}
+  <div style="padding:10px 18px;border-bottom:1px solid var(--border);display:flex;gap:12px;flex-wrap:wrap;font-size:.75rem">
+    <span class="badge badge-complete">✓ FIR में</span>
+    <span class="badge badge-revoked"><i class="fas fa-handcuffs"></i> गिरफ्तार</span>
+    <span class="badge badge-bail">✓ CS</span>
+    <span class="badge badge-pending">— नहीं</span>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>फ़ोटो</th>
+          <th>अभियुक्त का नाम</th>
+          <th>पिता का नाम</th>
+          <th>कुल अभियुक्त में</th>
+          <th>FIR में नामित</th>
+          <th>गिरफ्तार</th>
+          <th>आरोप पत्र (CS)</th>
+          <th>कुल FIR</th>
+          <th>विवरण</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for acc in accused_list %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>
+            {% if acc.photo_url %}
+            <img src="{{ acc.photo_url }}" class="accused-photo">
+            {% else %}
+            <div class="photo-placeholder"><i class="fas fa-user"></i></div>
+            {% endif %}
+          </td>
+          <td style="font-weight:700">{{ acc.name }}</td>
+          <td>{{ acc.fathers_name }}</td>
+          <td style="text-align:center">
+            {% if acc.in_total_accused %}<span class="badge badge-complete">✓</span>{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
+          </td>
+          <td style="text-align:center">
+            {% if acc.in_fir_accused %}<span class="badge badge-complete">✓</span>{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
+          </td>
+          <td style="text-align:center">
+            {% if acc.in_arrested %}
+            <span class="badge badge-revoked"><i class="fas fa-handcuffs"></i> हाँ</span>
+            {% else %}<span style="color:var(--text-muted)">नहीं</span>{% endif %}
+          </td>
+          <td style="text-align:center">
+            {% if acc.in_cs_accused %}<span class="badge badge-bail">✓ CS</span>{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
+          </td>
+          <td style="text-align:center">
+            <span class="badge badge-info">{{ acc.fir_count }}</span>
+          </td>
+          <td>
+            <a href="{{ url_for('super.accused_detail', accused_id=acc.id) }}" class="btn btn-primary btn-xs">
+              <i class="fas fa-user"></i> प्रोफ़ाइल
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" class="empty-state"><p>इस FIR में कोई अभियुक्त नहीं।</p></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Raw data from Excel ── #}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-table"></i> मूल Excel डेटा</span>
+  </div>
+  <div class="card-body">
+    <div class="form-row">
+      <div class="info-item">
+        <label>कुल अभियुक्त (Excel)</label>
+        <span style="font-size:.82rem;line-height:1.6">{{ fir.total_accused_raw or '—' }}</span>
+      </div>
+      <div class="info-item">
+        <label>FIR में अभियुक्त</label>
+        <span style="font-size:.82rem;line-height:1.6">{{ fir.fir_accused_raw or '—' }}</span>
+      </div>
+      <div class="info-item">
+        <label>गिरफ्तार अभियुक्त</label>
+        <span style="font-size:.82rem;line-height:1.6">{{ fir.arrested_accused_raw or '—' }}</span>
+      </div>
+      <div class="info-item">
+        <label>आरोप पत्र अभियुक्त (CS)</label>
+        <span style="font-size:.82rem;line-height:1.6">{{ fir.cs_accused_raw or '—' }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

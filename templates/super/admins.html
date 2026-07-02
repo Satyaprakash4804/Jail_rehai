@@ -1,0 +1,72 @@
+{% extends "shared/base.html" %}
+{% block title %}मेरे व्यवस्थापक{% endblock %}
+{% block page_title %}व्यवस्थापक / ऑपरेटर Accounts{% endblock %}
+{% block sidebar_nav %}
+{% include "shared/super_sidebar.html" %}
+{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-users" style="color:var(--primary)"></i> Admin Accounts ({{ total }})</span>
+    <div style="display:flex;gap:8px">
+      <a href="{{ url_for('super.upload_admins') }}" class="btn btn-outline btn-sm"><i class="fas fa-file-csv"></i> बल्क अपलोड</a>
+      <a href="{{ url_for('super.create_admin') }}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> व्यवस्थापक जोड़ें</a>
+    </div>
+  </div>
+  <div class="card-body" style="padding-bottom:0">
+    <form method="GET" class="search-bar" style="margin-bottom:16px">
+      <div class="search-input-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" name="search" class="form-control" placeholder="खोजें by name, ID, designation, contact..." value="{{ search }}">
+      </div>
+      <select name="per_page" class="form-control form-select" style="width:auto" onchange="this.form.submit()">
+        {% for n in [10,20,50,100] %}<option value="{{ n }}" {% if per_page==n %}selected{% endif %}>{{ n }} / page</option>{% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
+      {% if search %}<a href="{{ url_for('super.admins') }}" class="btn btn-outline">साफ़ करें</a>{% endif %}
+    </form>
+  </div>
+  <div class="table-wrap">
+    {% if admins %}
+    <table>
+      <thead>
+        <tr><th>#</th><th>यूज़र ID</th><th>नाम</th><th>पदनाम</th><th>संपर्क</th><th>ईमेल</th><th>जिला</th><th>Status</th><th>कार्रवाईs</th></tr>
+      </thead>
+      <tbody>
+        {% for a in admins %}
+        <tr>
+          <td style="color:var(--text-muted)">{{ (page-1)*per_page + loop.index }}</td>
+          <td><strong>{{ a.user_id }}</strong></td>
+          <td>{{ a.name }}</td>
+          <td style="color:var(--text-muted)">{{ a.designation or '—' }}</td>
+          <td>{{ a.contact or '—' }}</td>
+          <td style="font-size:.78rem">{{ a.email }}</td>
+          <td>{{ a.district or '—' }}</td>
+          <td><span class="badge {% if a.is_active %}badge-active{% else %}badge-revoked{% endif %}">{% if a.is_active %}Active{% else %}Revoked{% endif %}</span></td>
+          <td style="white-space:nowrap">
+            <form method="POST" action="{{ url_for('super.toggle_admin', uid=a.id) }}" style="display:inline">
+              <button class="btn btn-xs {% if a.is_active %}btn-danger{% else %}btn-success{% endif %}" onclick="return confirm('{% if a.is_active %}Revoke{% else %}Restore{% endif %} access for {{ a.name }}?')">
+                {% if a.is_active %}<i class="fas fa-ban"></i> Revoke{% else %}<i class="fas fa-rotate-left"></i> Restore{% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><i class="fas fa-users"></i><p>No admins found. <a href="{{ url_for('super.create_admin') }}">Create one now</a></p></div>
+    {% endif %}
+  </div>
+  {% if total_pages > 1 %}
+  <div style="padding:16px 20px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <div class="pagination">
+      <a class="page-btn {% if page==1 %}disabled{% endif %}" href="?page={{ page-1 }}&search={{ search }}&per_page={{ per_page }}"><i class="fas fa-chevron-left"></i></a>
+      {% for p in range([1,page-2]|max, [total_pages,page+2]|min + 1) %}<a class="page-btn {% if p==page %}active{% endif %}" href="?page={{ p }}&search={{ search }}&per_page={{ per_page }}">{{ p }}</a>{% endfor %}
+      <a class="page-btn {% if page==total_pages %}disabled{% endif %}" href="?page={{ page+1 }}&search={{ search }}&per_page={{ per_page }}"><i class="fas fa-chevron-right"></i></a>
+    </div>
+    <span class="page-info">पृष्ठ {{ page }} में से {{ total_pages }} · {{ total }} total</span>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

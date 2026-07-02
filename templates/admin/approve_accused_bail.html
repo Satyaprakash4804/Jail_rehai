@@ -1,0 +1,316 @@
+{% extends "shared/base.html" %}
+{% block title %}जमानत स्वीकृत करें — {{ accused.name }}{% endblock %}
+{% block page_title %}जमानत स्वीकृत करें{% endblock %}
+
+{% block sidebar_nav %}
+{% include "shared/admin_sidebar.html" %}
+{% endblock %}
+
+{% block content %}
+<div style="max-width:640px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+    <a href="{{ url_for('admin.accused_detail', accused_id=accused.id) }}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i></a>
+    <div>
+      <h2 style="font-size:1.05rem;font-weight:700">जमानत स्वीकृत करें — {{ accused.name }}</h2>
+      <span style="font-size:.75rem;color:var(--text-muted)">पिता का नाम (S/o): {{ accused.fathers_name }}</span>
+    </div>
+  </div>
+
+  <div class="card" style="border:1px solid rgba(156,39,176,.2)">
+    <div class="card-header" style="background:rgba(156,39,176,.05)">
+      <span class="card-title" style="color:var(--badge-bail)"><i class="fas fa-scale-balanced"></i> जमानत विवरण</span>
+    </div>
+    <div class="card-body">
+      <div class="form-text" style="margin-bottom:14px">
+        <i class="fas fa-circle-info"></i> जमानत केवल उस FIR के आधार पर स्वीकृत की जा सकती है जिसमें यह अभियुक्त गिरफ़्तार दर्शाया गया है।
+      </div>
+      <form method="post" enctype="multipart/form-data" id="bailForm">
+
+        <div class="form-group">
+          <label class="form-label">गिरफ़्तारी FIR चुनें <span class="required">*</span></label>
+          <select name="fir_id" class="form-control form-select" required>
+            <option value="">-- FIR चुनें --</option>
+            {% for f in arrest_firs %}
+            <option value="{{ f.id }}">{{ f.fir_number }} / {{ f.thana }} ({{ f.district }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">जमानत प्रकार <span class="required">*</span></label>
+          <div class="radio-group">
+            <label class="radio-option">
+              <input type="radio" name="bail_type" value="temporary" checked onchange="toggleBailDates()"> अस्थायी जमानत
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="bail_type" value="permanent" onchange="toggleBailDates()"> स्थायी जमानत
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">जमानत शुरुआत तिथि <span class="required">*</span></label>
+            <input type="date" name="bail_start_date" id="bailStartDate" class="form-control" required>
+            <div class="form-text">पिछली तिथि चुनना संभव नहीं — केवल आज या भविष्य की तिथि मान्य है।</div>
+          </div>
+          <div class="form-group" id="endDateGroup">
+            <label class="form-label">जमानत समाप्ति तिथि <span class="required" id="endDateReq">*</span></label>
+            <input type="date" name="bail_end_date" class="form-control" id="endDateInput">
+            <div class="form-text" id="permanentNote" style="display:none;color:var(--badge-bail)">
+              <i class="fas fa-info-circle"></i> स्थायी जमानत के लिए समाप्ति तिथि आवश्यक नहीं।
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">जोखिम रेटिंग (1–5 स्टार)</label>
+          <div class="radio-group" id="ratingGroup">
+            {% for n in [1,2,3,4,5] %}
+            <label class="radio-option" style="cursor:pointer" title="{{ n }} star{% if n > 1 %}s{% endif %}">
+              <input type="radio" name="bail_rating" value="{{ n }}" style="display:none" id="star{{ n }}">
+              <i class="fas fa-star" id="starIcon{{ n }}" style="color:var(--border);font-size:1.3rem;transition:color .15s" onclick="setRating({{ n }})"></i>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="form-text">अधिक रेटिंग = अधिक जोखिम / अधिक निगरानी आवश्यक।</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">जमानत टिप्पणी</label>
+          <textarea name="bail_remark" class="form-control" rows="2" placeholder="जमानत की शर्त, व्यवहार, जोखिम कारकों के बारे में टिप्पणी दर्ज करें…"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">अभियुक्त की लाइव geo-tagged फ़ोटो <span class="required">*</span></label>
+          <div class="form-text" style="margin-bottom:8px">
+            <i class="fas fa-circle-info"></i> कैमरे से अभी ली गई फ़ोटो अनिवार्य है — गैलरी से पुरानी फ़ोटो अपलोड नहीं की जा सकती। फ़ोटो पर तारीख़, समय और स्थान (lat/long) स्वतः अंकित होंगे।
+          </div>
+
+          <div id="cameraIdleState">
+            <button type="button" class="btn btn-outline" id="startCameraBtn">
+              <i class="fas fa-camera"></i> कैमरा शुरू करें
+            </button>
+          </div>
+
+          <div id="cameraLiveState" style="display:none">
+            <div style="position:relative;max-width:420px;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:#000">
+              <video id="bailCameraVideo" autoplay playsinline style="width:100%;display:block"></video>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button type="button" class="btn btn-primary btn-sm" id="captureBtn"><i class="fas fa-camera-retro"></i> फ़ोटो लें</button>
+              <button type="button" class="btn btn-outline btn-sm" id="cancelCameraBtn">रद्द करें</button>
+            </div>
+          </div>
+
+          <div id="cameraCapturedState" style="display:none">
+            <div style="max-width:420px;border-radius:10px;overflow:hidden;border:1px solid var(--border)">
+              <img id="capturedPhotoPreview" style="width:100%;display:block" alt="Captured geo-tagged photo">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button type="button" class="btn btn-outline btn-sm" id="retakeBtn"><i class="fas fa-rotate-left"></i> फिर से फ़ोटो लें</button>
+              <span class="badge badge-complete" style="align-self:center"><i class="fas fa-circle-check"></i> फ़ोटो कैप्चर हो गई</span>
+            </div>
+          </div>
+
+          <div id="cameraLocationStatus" class="form-text" style="margin-top:6px">
+            <i class="fas fa-location-crosshairs"></i> <span id="locationStatusText">स्थान (GPS) प्राप्त किया जा रहा है…</span>
+          </div>
+
+          <canvas id="bailCaptureCanvas" style="display:none"></canvas>
+          <input type="hidden" name="bail_photo_data" id="bailPhotoDataInput">
+          <input type="hidden" name="bail_photo_lat" id="bailPhotoLatInput">
+          <input type="hidden" name="bail_photo_lng" id="bailPhotoLngInput">
+          <input type="hidden" name="bail_photo_captured_at" id="bailPhotoCapturedAtInput">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">जमानत दस्तावेज़</label>
+          <input type="file" name="bail_document" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+          <div class="form-text">जमानत आदेश, बंध-पत्र या संबंधित दस्तावेज़ अपलोड करें।</div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:6px">
+          <button type="submit" class="btn btn-warning"><i class="fas fa-scale-balanced"></i> जमानत स्वीकृत करें</button>
+          <a href="{{ url_for('admin.accused_detail', accused_id=accused.id) }}" class="btn btn-outline">रद्द करें</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleBailDates() {
+  const isPermanent = document.querySelector('input[name="bail_type"]:checked').value === 'permanent';
+  const endInput = document.getElementById('endDateInput');
+  const permanentNote = document.getElementById('permanentNote');
+  const req = document.getElementById('endDateReq');
+  endInput.required = !isPermanent;
+  endInput.disabled = isPermanent;
+  permanentNote.style.display = isPermanent ? 'block' : 'none';
+  req.style.display = isPermanent ? 'none' : 'inline';
+  if (isPermanent) endInput.value = '';
+}
+
+let currentRating = 0;
+function setRating(n) {
+  currentRating = n;
+  document.getElementById('star' + n).checked = true;
+  for (let i = 1; i <= 5; i++) {
+    document.getElementById('starIcon' + i).style.color = i <= n ? 'var(--warning)' : 'var(--border)';
+  }
+}
+for (let i = 1; i <= 5; i++) {
+  const icon = document.getElementById('starIcon' + i);
+  icon.addEventListener('mouseenter', () => {
+    for (let j = 1; j <= 5; j++)
+      document.getElementById('starIcon' + j).style.color = j <= i ? 'var(--warning)' : 'var(--border)';
+  });
+  icon.addEventListener('mouseleave', () => {
+    for (let j = 1; j <= 5; j++)
+      document.getElementById('starIcon' + j).style.color = j <= currentRating ? 'var(--warning)' : 'var(--border)';
+  });
+}
+
+// ── पिछली तिथि चयन को रोकें (No previous dates selectable) ─────────────────
+(function () {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const startInput = document.getElementById('bailStartDate');
+  const endInput    = document.getElementById('endDateInput');
+  startInput.min = todayStr;
+  endInput.min    = todayStr;
+  startInput.addEventListener('change', () => {
+    // समाप्ति तिथि, शुरुआत तिथि से पहले नहीं हो सकती
+    endInput.min = startInput.value || todayStr;
+    if (endInput.value && endInput.value < endInput.min) endInput.value = '';
+  });
+})();
+
+// ── अभियुक्त की geo-tagged लाइव कैमरा फ़ोटो ─────────────────────────────────
+(function () {
+  const accusedName   = {{ accused.name|tojson }};
+  const idleState      = document.getElementById('cameraIdleState');
+  const liveState       = document.getElementById('cameraLiveState');
+  const capturedState  = document.getElementById('cameraCapturedState');
+  const video           = document.getElementById('bailCameraVideo');
+  const canvas          = document.getElementById('bailCaptureCanvas');
+  const preview          = document.getElementById('capturedPhotoPreview');
+  const locationText    = document.getElementById('locationStatusText');
+  const photoDataInput  = document.getElementById('bailPhotoDataInput');
+  const latInput        = document.getElementById('bailPhotoLatInput');
+  const lngInput        = document.getElementById('bailPhotoLngInput');
+  const capturedAtInput = document.getElementById('bailPhotoCapturedAtInput');
+
+  let mediaStream = null;
+  let currentLat  = null;
+  let currentLng  = null;
+
+  function requestLocation() {
+    if (!navigator.geolocation) {
+      locationText.textContent = 'यह ब्राउज़र स्थान (GPS) सुविधा समर्थित नहीं करता।';
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        currentLat = pos.coords.latitude;
+        currentLng = pos.coords.longitude;
+        locationText.textContent = `स्थान प्राप्त हुआ: ${currentLat.toFixed(6)}, ${currentLng.toFixed(6)}`;
+      },
+      err => {
+        locationText.textContent = 'स्थान अनुमति नहीं मिली — फ़ोटो पर स्थान अंकित नहीं हो पाएगा। कृपया ब्राउज़र में लोकेशन अनुमति दें।';
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+  requestLocation();
+
+  async function startCamera() {
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }, audio: false
+      });
+      video.srcObject = mediaStream;
+      idleState.style.display = 'none';
+      liveState.style.display = 'block';
+      capturedState.style.display = 'none';
+      requestLocation();
+    } catch (err) {
+      alert('कैमरा शुरू नहीं हो सका। कृपया ब्राउज़र में कैमरा अनुमति दें और पुनः प्रयास करें।');
+    }
+  }
+
+  function stopCamera() {
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(t => t.stop());
+      mediaStream = null;
+    }
+  }
+
+  function capturePhoto() {
+    const w = video.videoWidth, h = video.videoHeight;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, w, h);
+
+    // ── Geo-tag overlay: तारीख़/समय + lat-long, फ़ोटो के निचले हिस्से में ──
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const locStr  = (currentLat != null && currentLng != null)
+      ? `Lat ${currentLat.toFixed(6)}, Long ${currentLng.toFixed(6)}`
+      : 'स्थान अनुपलब्ध';
+
+    const barHeight = Math.max(58, Math.round(h * 0.13));
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, h - barHeight, w, barHeight);
+
+    const pad = Math.max(10, Math.round(w * 0.02));
+    const fontBase = Math.max(12, Math.round(w * 0.022));
+    ctx.fillStyle = '#ffffff';
+    ctx.textBaseline = 'middle';
+
+    ctx.font = `700 ${fontBase + 2}px Arial, sans-serif`;
+    ctx.fillText(accusedName, pad, h - barHeight + fontBase * 1.1);
+
+    ctx.font = `500 ${fontBase}px Arial, sans-serif`;
+    ctx.fillText(`${dateStr}  ${timeStr}`, pad, h - barHeight + fontBase * 2.7);
+    ctx.fillText(locStr, pad, h - barHeight + fontBase * 4.1);
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    preview.src = dataUrl;
+    photoDataInput.value = dataUrl;
+    latInput.value = currentLat != null ? currentLat : '';
+    lngInput.value = currentLng != null ? currentLng : '';
+    capturedAtInput.value = now.toISOString().split('.')[0];
+
+    stopCamera();
+    liveState.style.display = 'none';
+    capturedState.style.display = 'block';
+  }
+
+  document.getElementById('startCameraBtn').addEventListener('click', startCamera);
+  document.getElementById('captureBtn').addEventListener('click', capturePhoto);
+  document.getElementById('cancelCameraBtn').addEventListener('click', () => {
+    stopCamera();
+    liveState.style.display = 'none';
+    idleState.style.display = 'block';
+  });
+  document.getElementById('retakeBtn').addEventListener('click', () => {
+    photoDataInput.value = '';
+    capturedState.style.display = 'none';
+    idleState.style.display = 'block';
+  });
+
+  document.getElementById('bailForm').addEventListener('submit', function (e) {
+    if (!photoDataInput.value) {
+      e.preventDefault();
+      alert('जमानत स्वीकृत करने से पहले कैमरे से अभियुक्त की geo-tagged लाइव फ़ोटो लेना अनिवार्य है।');
+    }
+  });
+
+  window.addEventListener('beforeunload', stopCamera);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "shared/base.html" %}
+{% block title %}All Admins{% endblock %}
+{% block page_title %}All Admins / Operators{% endblock %}
+{% block sidebar_nav %}
+<div class="nav-section-title">Management</div>
+<a href="{{ url_for('master.dashboard') }}" class="nav-item"><i class="fas fa-gauge nav-icon"></i> डैशबोर्ड</a>
+<a href="{{ url_for('master.super_admins') }}" class="nav-item"><i class="fas fa-user-shield nav-icon"></i> Super Admins</a>
+<a href="{{ url_for('master.all_admins') }}" class="nav-item active"><i class="fas fa-users nav-icon"></i> All Admins</a>
+<a href="{{ url_for('master.logs') }}" class="nav-item"><i class="fas fa-list-check nav-icon"></i> Activity Logs</a>
+{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-users" style="color:var(--primary)"></i> All Admins / Operators</span>
+    <span style="font-size:.8rem;color:var(--text-muted)">Total: {{ total }}</span>
+  </div>
+  <div class="card-body" style="padding-bottom:0">
+    <form method="GET" class="search-bar" style="margin-bottom:16px">
+      <div class="search-input-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" name="search" class="form-control" placeholder="खोजें by name, ID, district..." value="{{ search }}">
+      </div>
+      <select name="per_page" class="form-control form-select" style="width:auto" onchange="this.form.submit()">
+        {% for n in [10,20,50,100] %}<option value="{{ n }}" {% if per_page==n %}selected{% endif %}>{{ n }} / page</option>{% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> खोजें</button>
+      {% if search %}<a href="{{ url_for('master.all_admins') }}" class="btn btn-outline">साफ़ करें</a>{% endif %}
+    </form>
+  </div>
+  <div class="table-wrap">
+    {% if admins %}
+    <table>
+      <thead>
+        <tr><th>#</th><th>यूज़र ID</th><th>नाम</th><th>पदनाम</th><th>जिला</th><th>Created By (Super Admin)</th><th>संपर्क</th><th>Status</th><th>कार्रवाई</th></tr>
+      </thead>
+      <tbody>
+        {% for a in admins %}
+        <tr>
+          <td style="color:var(--text-muted)">{{ (page-1)*per_page + loop.index }}</td>
+          <td><strong>{{ a.user_id }}</strong></td>
+          <td>{{ a.name }}</td>
+          <td style="color:var(--text-muted)">{{ a.designation or '—' }}</td>
+          <td>{{ a.district or '—' }}</td>
+          <td>
+            {% if a.super_name %}
+            <div style="font-weight:600;font-size:.82rem">{{ a.super_name }}</div>
+            <div style="font-size:.72rem;color:var(--text-muted)">{{ a.super_uid }} · {{ a.super_district }}</div>
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ a.contact or '—' }}</td>
+          <td><span class="badge {% if a.is_active %}badge-active{% else %}badge-revoked{% endif %}">{% if a.is_active %}Active{% else %}Revoked{% endif %}</span></td>
+          <td>
+            <form method="POST" action="{{ url_for('master.revoke_user', uid=a.id) }}" style="display:inline">
+              <button class="btn btn-xs {% if a.is_active %}btn-danger{% else %}btn-success{% endif %}" onclick="return confirm('{% if a.is_active %}Revoke{% else %}Restore{% endif %} access?')">
+                {% if a.is_active %}<i class="fas fa-ban"></i> Revoke{% else %}<i class="fas fa-rotate-left"></i> Restore{% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><i class="fas fa-users"></i><p>No admins found.</p></div>
+    {% endif %}
+  </div>
+  {% if total_pages > 1 %}
+  <div style="padding:16px 20px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <div class="pagination">
+      <a class="page-btn {% if page==1 %}disabled{% endif %}" href="?page={{ page-1 }}&search={{ search }}&per_page={{ per_page }}"><i class="fas fa-chevron-left"></i></a>
+      {% for p in range([1,page-2]|max, [total_pages,page+2]|min + 1) %}
+      <a class="page-btn {% if p==page %}active{% endif %}" href="?page={{ p }}&search={{ search }}&per_page={{ per_page }}">{{ p }}</a>
+      {% endfor %}
+      <a class="page-btn {% if page==total_pages %}disabled{% endif %}" href="?page={{ page+1 }}&search={{ search }}&per_page={{ per_page }}"><i class="fas fa-chevron-right"></i></a>
+    </div>
+    <span class="page-info">पृष्ठ {{ page }} में से {{ total_pages }} · {{ total }} total</span>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

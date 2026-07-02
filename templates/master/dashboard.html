@@ -1,0 +1,92 @@
+{% extends "shared/base.html" %}
+{% block title %}Master डैशबोर्ड{% endblock %}
+{% block page_title %}Master Admin डैशबोर्ड{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section-title">Management</div>
+<a href="{{ url_for('master.dashboard') }}" class="nav-item {% if request.endpoint=='master.dashboard' %}active{% endif %}">
+  <i class="fas fa-gauge nav-icon"></i> डैशबोर्ड
+</a>
+<a href="{{ url_for('master.super_admins') }}" class="nav-item {% if request.endpoint in ['master.super_admins','master.create_super_admin','master.edit_user'] %}active{% endif %}">
+  <i class="fas fa-user-shield nav-icon"></i> Super Admins
+</a>
+<a href="{{ url_for('master.all_admins') }}" class="nav-item {% if request.endpoint=='master.all_admins' %}active{% endif %}">
+  <i class="fas fa-users nav-icon"></i> All Admins
+</a>
+<div class="nav-section-title">System</div>
+<a href="{{ url_for('master.logs') }}" class="nav-item {% if request.endpoint=='master.logs' %}active{% endif %}">
+  <i class="fas fa-list-check nav-icon"></i> Activity Logs
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon icon-purple"><i class="fas fa-user-shield"></i></div>
+    <div>
+      <div class="stat-value">{{ stats.super_admins }}</div>
+      <div class="stat-label">Super Admins</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-blue"><i class="fas fa-users"></i></div>
+    <div>
+      <div class="stat-value">{{ stats.admins }}</div>
+      <div class="stat-label">Admins / Operators</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-red"><i class="fas fa-user-slash"></i></div>
+    <div>
+      <div class="stat-value">{{ stats.revoked }}</div>
+      <div class="stat-label">Revoked Accounts</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-green"><i class="fas fa-list-check"></i></div>
+    <div>
+      <div class="stat-value">{{ stats.logs }}</div>
+      <div class="stat-label">Total API Logs</div>
+    </div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex-wrap:wrap">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="fas fa-bolt" style="color:var(--warning)"></i> त्वरित कार्य</span>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+      <a href="{{ url_for('master.create_super_admin') }}" class="btn btn-primary"><i class="fas fa-user-plus"></i> Create Super Admin</a>
+      <a href="{{ url_for('master.super_admins') }}" class="btn btn-outline"><i class="fas fa-user-shield"></i> देखें Super Admins</a>
+      <a href="{{ url_for('master.all_admins') }}" class="btn btn-outline"><i class="fas fa-users"></i> देखें All Admins</a>
+      <a href="{{ url_for('master.logs') }}" class="btn btn-outline"><i class="fas fa-list-check"></i> देखें Activity Logs</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="fas fa-circle-info" style="color:var(--primary)"></i> System Info</span>
+    </div>
+    <div class="card-body">
+      <div style="display:flex;flex-direction:column;gap:12px;font-size:.85rem">
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px">
+          <span style="color:var(--text-muted)">Logged in as</span>
+          <strong>{{ session.name }}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px">
+          <span style="color:var(--text-muted)">भूमिका</span>
+          <span class="badge badge-master">Master Admin</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px">
+          <span style="color:var(--text-muted)">यूज़र ID</span>
+          <strong>{{ session.user_uid }}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--text-muted)">Access Level</span>
+          <span style="color:var(--success);font-weight:600">Full System Access</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

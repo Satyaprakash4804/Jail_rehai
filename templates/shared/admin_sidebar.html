@@ -1,0 +1,27 @@
+<div class="nav-section-title">डैशबोर्ड</div>
+<a href="{{ url_for('admin.dashboard') }}" class="nav-item {% if request.endpoint=='admin.dashboard' %}active{% endif %}">
+  <i class="fas fa-gauge-high nav-icon"></i> डैशबोर्ड
+</a>
+<a href="{{ url_for('admin.notifications') }}" class="nav-item {% if request.endpoint=='admin.notifications' %}active{% endif %}">
+  <i class="fas fa-bell nav-icon"></i> सूचनाएं
+</a>
+
+<div class="nav-section-title">अभियुक्त प्रबंधन (FIR)</div>
+<a href="{{ url_for('admin.accused_list') }}" class="nav-item {% if request.endpoint in ['admin.accused_list','admin.accused_detail'] %}active{% endif %}">
+  <i class="fas fa-user-group nav-icon"></i> अभियुक्त सूची
+</a>
+<a href="{{ url_for('admin.fir_list') }}" class="nav-item {% if request.endpoint in ['admin.fir_list','admin.fir_detail'] %}active{% endif %}">
+  <i class="fas fa-file-lines nav-icon"></i> FIR सूची
+</a>
+<a href="{{ url_for('admin.add_fir') }}" class="nav-item {% if request.endpoint=='admin.add_fir' %}active{% endif %}">
+  <i class="fas fa-circle-plus nav-icon"></i> FIR दर्ज करें
+</a>
+<a href="{{ url_for('admin.upload_accused') }}" class="nav-item {% if request.endpoint=='admin.upload_accused' %}active{% endif %}">
+  <i class="fas fa-file-arrow-up nav-icon"></i> बल्क अपलोड (Excel)
+</a>
+<a href="{{ url_for('admin.bailed_accused') }}" class="nav-item {% if request.endpoint=='admin.bailed_accused' %}active{% endif %}">
+  <i class="fas fa-scale-balanced nav-icon"></i> अभियुक्त जमानत इतिहास
+</a>
+<a href="{{ url_for('admin.search_by_photo') }}" class="nav-item {% if request.endpoint=='admin.search_by_photo' %}active{% endif %}">
+  <i class="fas fa-camera-retro nav-icon"></i> फ़ोटो से खोजें (FRS)
+</a>

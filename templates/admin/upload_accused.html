@@ -1,0 +1,94 @@
+{% extends "shared/base.html" %}
+{% block title %}बल्क अपलोड — अभियुक्त / FIR{% endblock %}
+{% block page_title %}बल्क अपलोड — अभियुक्त रिकॉर्ड (Excel){% endblock %}
+
+{% block sidebar_nav %}
+{% include "shared/admin_sidebar.html" %}
+{% endblock %}
+
+{% block content %}
+<div style="max-width:760px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+    <a href="{{ url_for('admin.accused_list') }}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i></a>
+    <h2 style="font-size:1.05rem;font-weight:700">बल्क अपलोड — अभियुक्त रिकॉर्ड (Excel)</h2>
+  </div>
+
+  <div class="card" style="margin-bottom:18px;border:1px solid rgba(26,115,232,.2)">
+    <div class="card-header" style="background:rgba(26,115,232,.05)">
+      <span class="card-title" style="color:var(--primary)"><i class="fas fa-circle-info"></i> आवश्यक Excel कॉलम (UP Police फ़ॉर्मेट)</span>
+      <a href="{{ url_for('admin.download_accused_sample') }}" class="btn btn-primary btn-sm">
+        <i class="fas fa-download"></i> Sample Excel डाउनलोड करें
+      </a>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">
+        {% for col in ['क्र.','जनपद','थाना','FIR संख्या','धारा','कुल अभियुक्त','FIR में अभियुक्त','गिरफ्तार अभियुक्त','आरोप पत्र अभियुक्त','वादी','स्थिति'] %}
+        <div style="display:flex;align-items:center;gap:6px;font-size:.8rem">
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--primary);flex-shrink:0"></span>
+          <code>{{ col }}</code>
+        </div>
+        {% endfor %}
+      </div>
+      <div style="margin-top:14px;font-size:.78rem;color:var(--text-muted);line-height:1.6">
+        <i class="fas fa-triangle-exclamation" style="color:var(--warning)"></i>
+        <b>अभियुक्त कॉलम प्रारूप:</b> एक से अधिक अभियुक्त होने पर कॉमा (,) से अलग करें। हर अभियुक्त का नाम पिता के नाम के साथ
+        <code>s/o</code> या <code>पुत्र</code> से जोड़ें — उदाहरण:
+        <br><code>रामकुमार s/o श्यामलाल, मोहन सिंह s/o रामसिंह</code>
+        <br><br>
+        <i class="fas fa-shield-halved" style="color:var(--success)"></i>
+        सिस्टम स्वचालित रूप से नाम + पिता के नाम के आधार पर <b>फ़ज़ी मैचिंग</b> करके यह पहचानता है कि अभियुक्त पहले से मौजूद है या नया है —
+        एक ही अभियुक्त कभी दोहराया नहीं जाता, केवल उसकी नई FIR/धारा जोड़ दी जाती है।
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="fas fa-file-arrow-up"></i> Excel फ़ाइल अपलोड करें</span></div>
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data" id="uploadForm">
+        <div class="upload-area" id="dropArea" onclick="document.getElementById('excelInput').click()">
+          <i class="fas fa-file-excel" style="font-size:2.5rem;color:var(--success)"></i>
+          <div style="margin-top:8px;font-weight:600">यहाँ क्लिक करें या अपनी Excel फ़ाइल खींचें</div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">केवल .xlsx या .xls फ़ाइलें स्वीकार्य</div>
+        </div>
+        <input type="file" id="excelInput" name="excel_file" accept=".xlsx,.xls" style="display:none" onchange="showFileName(this)" required>
+        <div id="fileInfo" style="display:none;margin-top:10px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;align-items:center;gap:10px">
+          <i class="fas fa-file-excel" style="color:var(--success);font-size:1.3rem"></i>
+          <div>
+            <div id="fileName" style="font-weight:600;font-size:.85rem"></div>
+            <div id="fileSize" style="font-size:.75rem;color:var(--text-muted)"></div>
+          </div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:10px">
+          <button type="submit" class="btn btn-primary" id="uploadBtn"><i class="fas fa-upload"></i> अपलोड करें और Import करें</button>
+          <a href="{{ url_for('admin.accused_list') }}" class="btn btn-outline">रद्द करें</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showFileName(input) {
+  if (input.files && input.files[0]) {
+    const f = input.files[0];
+    document.getElementById('fileName').textContent = f.name;
+    document.getElementById('fileSize').textContent = (f.size/1024).toFixed(1) + ' KB';
+    document.getElementById('fileInfo').style.display = 'flex';
+  }
+}
+const dropArea = document.getElementById('dropArea');
+['dragover','dragenter'].forEach(e => dropArea.addEventListener(e, ev => { ev.preventDefault(); dropArea.classList.add('dragover'); }));
+['dragleave','drop'].forEach(e => dropArea.addEventListener(e, ev => { ev.preventDefault(); dropArea.classList.remove('dragover'); }));
+dropArea.addEventListener('drop', ev => {
+  const files = ev.dataTransfer.files;
+  if (files.length) { document.getElementById('excelInput').files = files; showFileName(document.getElementById('excelInput')); }
+});
+document.getElementById('uploadForm').addEventListener('submit', () => {
+  document.getElementById('uploadBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Import हो रहा है…';
+  document.getElementById('uploadBtn').disabled = true;
+});
+</script>
+{% endblock %}

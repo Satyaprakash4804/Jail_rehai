@@ -1,0 +1,123 @@
+{% extends "shared/base.html" %}
+{% block title %}Approve जमानत — {{ crim.name }}{% endblock %}
+{% block page_title %}Approve जमानत{% endblock %}
+
+{% block sidebar_nav %}
+{% include "shared/admin_sidebar.html" %}
+{% endblock %}
+
+{% block content %}
+<div style="max-width:640px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+    <a href="{{ url_for('admin.criminal_view', cid=crim.id) }}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i></a>
+    <div>
+      <h2 style="font-size:1.05rem;font-weight:700">Approve जमानत — {{ crim.name }}</h2>
+      <span style="font-size:.75rem;color:var(--text-muted)">आधार: {{ crim.aadhar }}</span>
+    </div>
+  </div>
+
+  <div class="card" style="border:1px solid rgba(156,39,176,.2)">
+    <div class="card-header" style="background:rgba(156,39,176,.05)">
+      <span class="card-title" style="color:var(--badge-bail)"><i class="fas fa-scale-balanced"></i> जमानत Details</span>
+    </div>
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data" id="bailForm">
+
+        <div class="form-group">
+          <label class="form-label">जमानत Type <span class="required">*</span></label>
+          <div class="radio-group">
+            <label class="radio-option">
+              <input type="radio" name="bail_type" value="temporary" checked onchange="toggleजमानतDates()"> Temporary जमानत
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="bail_type" value="permanent" onchange="toggleजमानतDates()"> Permanent जमानत
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">जमानत Start Date <span class="required">*</span></label>
+            <input type="date" name="bail_start_date" class="form-control" required>
+          </div>
+          <div class="form-group" id="endDateGroup">
+            <label class="form-label">जमानत End Date <span class="required" id="endDateReq">*</span></label>
+            <input type="date" name="bail_end_date" class="form-control" id="endDateInput">
+            <div class="form-text" id="permanentNote" style="display:none;color:var(--badge-bail)">
+              <i class="fas fa-info-circle"></i> स्थायी जमानत के लिए समाप्ति तिथि आवश्यक नहीं।
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">जोखिम रेटिंग (1–5 स्टार)</label>
+          <div class="radio-group" id="ratingGroup">
+            {% for n in [1,2,3,4,5] %}
+            <label class="radio-option" style="cursor:pointer" title="{{ n }} star{% if n > 1 %}s{% endif %}">
+              <input type="radio" name="bail_rating" value="{{ n }}" style="display:none" id="star{{ n }}">
+              <i class="fas fa-star" id="starIcon{{ n }}" style="color:var(--border);font-size:1.3rem;transition:color .15s" onclick="setRating({{ n }})"></i>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="form-text">अधिक रेटिंग = अधिक जोखिम / अधिक जांच आवश्यक।</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">जमानत टिप्पणी</label>
+          <textarea name="bail_remark" class="form-control" rows="2" placeholder="जमानत की शर्त के बारे में टिप्पणी दर्ज करें, behaviour, risk factors…"></textarea>
+          <div class="form-text">यह टिप्पणी अपराधी सूची में दिखेगी to all officers as a quick reference.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">जमानत Document</label>
+          <input type="file" name="bail_document" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+          <div class="form-text">जमानत आदेश, बंध दस्तावेज़ अपलोड करें, or any related file.</div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:6px">
+          <button type="submit" class="btn btn-warning"><i class="fas fa-scale-balanced"></i> Approve जमानत</button>
+          <a href="{{ url_for('admin.criminal_view', cid=crim.id) }}" class="btn btn-outline">रद्द करें</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleजमानतDates() {
+  const isPermanent = document.querySelector('input[name="bail_type"]:checked').value === 'permanent';
+  const endInput = document.getElementById('endDateInput');
+  const permanentNote = document.getElementById('permanentNote');
+  const req = document.getElementById('endDateReq');
+  endInput.required = !isPermanent;
+  endInput.disabled = isPermanent;
+  permanentNote.style.display = isPermanent ? 'block' : 'none';
+  req.style.display = isPermanent ? 'none' : 'inline';
+  if (isPermanent) endInput.value = '';
+}
+
+let currentRating = 0;
+function setRating(n) {
+  currentRating = n;
+  document.getElementById('star' + n).checked = true;
+  for (let i = 1; i <= 5; i++) {
+    document.getElementById('starIcon' + i).style.color = i <= n ? 'var(--warning)' : 'var(--border)';
+  }
+}
+
+// Hover effect
+for (let i = 1; i <= 5; i++) {
+  const icon = document.getElementById('starIcon' + i);
+  icon.addEventListener('mouseenter', () => {
+    for (let j = 1; j <= 5; j++)
+      document.getElementById('starIcon' + j).style.color = j <= i ? 'var(--warning)' : 'var(--border)';
+  });
+  icon.addEventListener('mouseleave', () => {
+    for (let j = 1; j <= 5; j++)
+      document.getElementById('starIcon' + j).style.color = j <= currentRating ? 'var(--warning)' : 'var(--border)';
+  });
+}
+</script>
+{% endblock %}

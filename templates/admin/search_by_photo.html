@@ -1,0 +1,130 @@
+{% extends "shared/base.html" %}
+{% block title %}फ़ोटो खोजें (FRS){% endblock %}
+{% block page_title %}Face Recognition खोजें{% endblock %}
+
+{% block sidebar_nav %}
+{% include "shared/admin_sidebar.html" %}
+{% endblock %}
+
+{% block content %}
+<div style="max-width:900px">
+  <div class="card" style="margin-bottom:20px;border:1px solid rgba(26,115,232,.2)">
+    <div class="card-header" style="background:rgba(26,115,232,.05)">
+      <span class="card-title" style="color:var(--primary)"><i class="fas fa-camera-retro"></i> अपलोड करें फ़ोटो for Face Match</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:14px">
+        अपलोड करें a clear photo में से the subject. The system will use FRS to compare it against all accused photos
+        in <strong>{{ session.district }}</strong> district and return the closest matches.
+      </p>
+      <form method="post" enctype="multipart/form-data" id="frsForm">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+          <div style="flex:1;min-width:220px">
+            <div class="upload-area" id="dropArea" onclick="document.getElementById('photoInput').click()">
+              <i class="fas fa-face-smile-beam" style="font-size:2.5rem;color:var(--primary)"></i>
+              <div style="margin-top:8px;font-weight:600">Click or drag a face photo</div>
+              <div style="font-size:.76rem;color:var(--text-muted);margin-top:4px">JPG, PNG — clear front-facing photo preferred</div>
+            </div>
+            <input type="file" id="photoInput" name="photo" accept="image/*" style="display:none" onchange="previewफ़ोटो(this)">
+          </div>
+          <div id="previewSection" style="display:none;flex-shrink:0">
+            <img id="previewImg" style="width:160px;height:160px;object-fit:cover;border-radius:12px;border:2px solid var(--primary)">
+          </div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px">
+          <button type="submit" class="btn btn-primary" id="searchBtn"><i class="fas fa-magnifying-glass"></i> खोजें by Face</button>
+          <a href="{{ url_for('admin.search_by_photo') }}" class="btn btn-outline"><i class="fas fa-rotate-left"></i> Reset</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Results -->
+  {% if results is defined %}
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="fas fa-list-check"></i> Match Results
+        <span style="font-size:.78rem;color:var(--text-muted);font-weight:400;margin-left:6px">{{ results|length }} match(es) found</span>
+      </span>
+    </div>
+    {% if results %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>फ़ोटो</th>
+            <th>नाम</th>
+            <th>पिता का नाम</th>
+            <th>Match Score</th>
+            <th>कार्रवाई</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in results %}
+          <tr>
+            <td><strong style="color:var(--primary)">#{{ loop.index }}</strong></td>
+            <td>
+              {% if r.photo_url %}
+              <img src="{{ r.photo_url }}" class="accused-photo" alt="फ़ोटो">
+              {% else %}
+              <div class="photo-placeholder"><i class="fas fa-user"></i></div>
+              {% endif %}
+            </td>
+            <td><strong>{{ r.name }}</strong></td>
+            <td>{{ r.fathers_name or '—' }}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden;min-width:80px">
+                  <div style="height:100%;background:{% if r.similarity >= 80 %}var(--success){% elif r.similarity >= 60 %}var(--warning){% else %}var(--danger){% endif %};width:{{ r.similarity }}%;transition:width .5s"></div>
+                </div>
+                <strong style="color:{% if r.similarity >= 80 %}var(--success){% elif r.similarity >= 60 %}var(--warning){% else %}var(--danger){% endif %}">{{ r.similarity }}%</strong>
+              </div>
+            </td>
+            <td>
+              <a href="{{ url_for('admin.accused_detail', accused_id=r.id) }}" class="btn btn-sm btn-primary"><i class="fas fa-eye"></i> देखें प्रोफ़ाइल</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="fas fa-face-meh-blank"></i>
+      <p>No matching accused found in the database for {{ session.district }} district.</p>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewफ़ोटो(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('previewImg').src = e.target.result;
+      document.getElementById('previewSection').style.display = 'block';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+const dropArea = document.getElementById('dropArea');
+['dragover','dragenter'].forEach(e => dropArea.addEventListener(e, ev => { ev.preventDefault(); dropArea.classList.add('dragover'); }));
+['dragleave','drop'].forEach(e => dropArea.addEventListener(e, ev => { ev.preventDefault(); dropArea.classList.remove('dragover'); }));
+dropArea.addEventListener('drop', ev => {
+  const files = ev.dataTransfer.files;
+  if (files.length) {
+    document.getElementById('photoInput').files = files;
+    previewफ़ोटो(document.getElementById('photoInput'));
+  }
+});
+document.getElementById('frsForm').addEventListener('submit', () => {
+  document.getElementById('searchBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> खोजेंing…';
+  document.getElementById('searchBtn').disabled = true;
+});
+</script>
+{% endblock %}

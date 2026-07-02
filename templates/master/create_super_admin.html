@@ -1,0 +1,101 @@
+{% extends "shared/base.html" %}
+{% block title %}Create Super Admin{% endblock %}
+{% block page_title %}Create Super Admin{% endblock %}
+{% block sidebar_nav %}
+<div class="nav-section-title">Management</div>
+<a href="{{ url_for('master.dashboard') }}" class="nav-item"><i class="fas fa-gauge nav-icon"></i> डैशबोर्ड</a>
+<a href="{{ url_for('master.super_admins') }}" class="nav-item active"><i class="fas fa-user-shield nav-icon"></i> Super Admins</a>
+<a href="{{ url_for('master.all_admins') }}" class="nav-item"><i class="fas fa-users nav-icon"></i> All Admins</a>
+<a href="{{ url_for('master.logs') }}" class="nav-item"><i class="fas fa-list-check nav-icon"></i> Activity Logs</a>
+{% endblock %}
+{% block content %}
+<div style="max-width:700px;margin:0 auto">
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-user-plus" style="color:var(--primary)"></i> Create Super Admin Account</span>
+    <a href="{{ url_for('master.super_admins') }}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> वापस</a>
+  </div>
+  <div class="card-body">
+    <form method="POST">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">यूज़र ID <span class="required">*</span></label>
+          <input type="text" name="user_id" class="form-control" value="{{ form.get('user_id','') }}" placeholder="e.g. SUP001" required>
+          <div class="form-text">Unique login identifier</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Full नाम <span class="required">*</span></label>
+          <input type="text" name="name" class="form-control" value="{{ form.get('name','') }}" placeholder="Officer full name" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">पदनाम</label>
+          <input type="text" name="designation" class="form-control" value="{{ form.get('designation','') }}" placeholder="e.g. जिला Superintendent">
+        </div>
+        <div class="form-group">
+          <label class="form-label">संपर्क Number</label>
+          <input type="text" name="contact" class="form-control" value="{{ form.get('contact','') }}" placeholder="10-digit mobile number" maxlength="15">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ईमेल पता <span class="required">*</span></label>
+          <input type="email" name="email" class="form-control" value="{{ form.get('email','') }}" placeholder="officer@domain.gov.in" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+              जिला <span class="required">*</span>
+          </label>
+
+          <select name="district" class="form-control" required>
+              <option value="">-- Select जिला --</option>
+
+              {% set districts = [
+              "Agra","Aligarh","Ambedkar Nagar","Amethi","Amroha","Auraiya","Ayodhya",
+              "Azamgarh","Baghpat","Bahraich","Ballia","Balrampur","Banda","Barabanki",
+              "Bareilly","Basti","Bhadohi","Bijnor","Budaun","Bulandshahr",
+              "Chandauli","Chitrakoot","Deoria","Etah","Etawah","Farrukhabad",
+              "Fatehpur","Firozabad","Gautam Buddha Nagar","Ghaziabad","Ghazipur",
+              "Gonda","Gorakhpur","Hamirpur","Hapur","Hardoi","Hathras","Jalaun",
+              "Jaunpur","Jhansi","Kannauj","Kanpur Dehat","Kanpur Nagar","Kasganj",
+              "Kaushambi","Kushinagar","Lakhimpur Kheri","Lalitpur","Lucknow",
+              "Maharajganj","Mahoba","Mainpuri","Mathura","Mau","Meerut",
+              "Mirzapur","Moradabad","Muzaffarnagar","Pilibhit","Pratapgarh",
+              "Prayagraj","Raebareli","Rampur","Saharanpur","Sambhal",
+              "Sant Kabir Nagar","Shahjahanpur","Shamli","Shravasti",
+              "Siddharthnagar","Sitapur","Sonbhadra","Sultanpur",
+              "Unnao","Varanasi"
+              ] %}
+
+              {% for district in districts %}
+              <option value="{{ district }}"
+                  {% if form.get('district') == district %}selected{% endif %}>
+                  {{ district }}
+              </option>
+              {% endfor %}
+          </select>
+
+          <div class="form-text">
+              Select the district under which the officer will operate.
+          </div>
+      </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">पता / Location</label>
+        <textarea name="address" class="form-control" rows="2" placeholder="Office address">{{ form.get('address','') }}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">पासवर्ड <span class="required">*</span></label>
+        <input type="password" name="password" class="form-control" placeholder="Set login password" required minlength="6">
+        <div class="form-text">Minimum 6 characters. Share securely with the officer.</div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Create Super Admin</button>
+        <a href="{{ url_for('master.super_admins') }}" class="btn btn-outline">रद्द करें</a>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}

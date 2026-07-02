@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="hi" data-theme="light">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify OTP | Jail Rehai</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--bg:#f0f2f5;--card:#fff;--text:#1a1a2e;--muted:#6c757d;--border:#dee2e6;--primary:#1a73e8;--primary-dark:#1557b0;--input-bg:#fff;--shadow:0 4px 24px rgba(0,0,0,.08);}
+[data-theme="dark"]{--bg:#0d1117;--card:#161b27;--text:#e0e6f0;--muted:#8b9dc3;--border:#2a3348;--input-bg:#1e2535;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.wrap{width:100%;max-width:420px;}
+.back-btn{display:inline-flex;align-items:center;gap:6px;color:var(--primary);text-decoration:none;font-size:.83rem;margin-bottom:20px;}
+.card{background:var(--card);border-radius:16px;padding:32px;box-shadow:var(--shadow);border:1px solid var(--border);}
+.icon-circle{width:56px;height:56px;background:rgba(26,115,232,.1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:var(--primary);margin-bottom:16px;}
+h2{font-size:1.1rem;margin-bottom:4px;}
+.sub{font-size:.8rem;color:var(--muted);margin-bottom:24px;}
+.form-group{margin-bottom:16px;}
+.form-label{display:block;font-size:.8rem;font-weight:600;margin-bottom:6px;}
+.input-wrap{position:relative;}
+.input-wrap i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem;}
+.input-wrap input{width:100%;padding:10px 12px 10px 36px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--text);font-size:.87rem;}
+.input-wrap input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(26,115,232,.1);}
+.toggle-pass{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;}
+.btn{width:100%;padding:11px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;}
+.btn:hover{background:var(--primary-dark);}
+.alert{padding:10px 14px;border-radius:8px;font-size:.82rem;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.alert-danger{background:rgba(220,53,69,.1);color:#721c24;border:1px solid rgba(220,53,69,.2);}
+.alert-success{background:rgba(40,167,69,.1);color:#155724;border:1px solid rgba(40,167,69,.2);}
+.alert-warning{background:rgba(255,193,7,.1);color:#856404;border:1px solid rgba(255,193,7,.2);}
+[data-theme="dark"] .alert-danger{color:#f1aeb5;}[data-theme="dark"] .alert-success{color:#75e09a;}
+.otp-timer{font-size:.78rem;color:var(--muted);margin-top:8px;text-align:center;}
+.theme-toggle{position:fixed;top:16px;right:16px;background:var(--card);border:1px solid var(--border);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:.9rem;}
+</style>
+</head>
+<body>
+<button class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
+<div class="wrap">
+  <a href="{{ url_for('auth.forgot_password') }}" class="back-btn"><i class="fas fa-arrow-left"></i> वापस</a>
+  <div class="card">
+    <div class="icon-circle"><i class="fas fa-shield-check"></i></div>
+    <h2>Verify OTP & Reset पासवर्ड</h2>
+    <div class="sub">Enter the OTP sent to <strong>{{ email }}</strong> and set a new password.</div>
+    {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}{% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}"><i class="fas fa-info-circle"></i> {{ msg }}</div>
+    {% endfor %}{% endif %}{% endwith %}
+    <form method="POST">
+      <input type="hidden" name="email" value="{{ email }}">
+      <div class="form-group">
+        <label class="form-label">OTP Code</label>
+        <div class="input-wrap">
+          <i class="fas fa-hashtag"></i>
+          <input type="text" name="otp" placeholder="Enter 6-digit OTP" maxlength="6" required style="letter-spacing:4px;font-size:1rem;font-weight:700;text-align:center;">
+        </div>
+        <div class="otp-timer">OTP valid for <span id="timer">10:00</span></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">New पासवर्ड</label>
+        <div class="input-wrap">
+          <i class="fas fa-lock"></i>
+          <input type="password" name="new_password" id="np" placeholder="New password (min 6 chars)" required minlength="6">
+          <button type="button" class="toggle-pass" onclick="tp('np','e1')"><i class="fas fa-eye" id="e1"></i></button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm पासवर्ड</label>
+        <div class="input-wrap">
+          <i class="fas fa-lock"></i>
+          <input type="password" name="confirm_password" id="cp" placeholder="Confirm new password" required minlength="6">
+          <button type="button" class="toggle-pass" onclick="tp('cp','e2')"><i class="fas fa-eye" id="e2"></i></button>
+        </div>
+      </div>
+      <button type="submit" class="btn"><i class="fas fa-key"></i> Reset पासवर्ड</button>
+    </form>
+  </div>
+</div>
+<script>
+const t=localStorage.getItem('theme')||'light';document.documentElement.setAttribute('data-theme',t);document.getElementById('themeIcon').classनाम=t==='dark'?'fas fa-sun':'fas fa-moon';
+function toggleTheme(){const c=document.documentElement.getAttribute('data-theme');const n=c==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('theme',n);document.getElementById('themeIcon').classनाम=n==='dark'?'fas fa-sun':'fas fa-moon';}
+function tp(id,ei){const el=document.getElementById(id);const ic=document.getElementById(ei);if(el.type==='password'){el.type='text';ic.classनाम='fas fa-eye-slash';}else{el.type='password';ic.classनाम='fas fa-eye';}}
+// OTP countdown
+let s=600;const ti=document.getElementById('timer');
+const iv=setInterval(()=>{s--;const m=Math.floor(s/60);const sec=s%60;ti.textContent=m+':'+(sec<10?'0':'')+sec;if(s<=0){clearInterval(iv);ti.textContent='Expired';ti.style.color='red';}},1000);
+</script>
+</body>
+</html>

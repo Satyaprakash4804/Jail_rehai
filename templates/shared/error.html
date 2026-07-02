@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="hi" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ code }} Error | Jail Rehai</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{--bg:#f0f2f5;--card:#fff;--text:#1a1a2e;--muted:#6c757d;--border:#dee2e6;--primary:#1a73e8;--danger:#dc3545;--shadow:0 4px 24px rgba(0,0,0,.08);}
+[data-theme="dark"]{--bg:#0d1117;--card:#161b27;--text:#e0e6f0;--muted:#8b9dc3;--border:#2a3348;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;transition:background .3s,color .3s;}
+.wrap{width:100%;max-width:480px;text-align:center;}
+.error-icon{font-size:5rem;margin-bottom:20px;line-height:1;}
+.error-code{font-size:6rem;font-weight:900;line-height:1;background:linear-gradient(135deg,var(--primary),#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.error-title{font-size:1.4rem;font-weight:700;margin:12px 0 8px;}
+.error-msg{font-size:.9rem;color:var(--muted);margin-bottom:28px;line-height:1.6;}
+.card{background:var(--card);border-radius:16px;padding:40px 32px;box-shadow:var(--shadow);border:1px solid var(--border);}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:8px;border:none;font-size:.88rem;font-weight:600;cursor:pointer;text-decoration:none;transition:all .2s;margin:4px;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:#1557b0;}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);}
+.btn-outline:hover{background:var(--bg);}
+.theme-toggle{position:fixed;top:16px;right:16px;background:var(--card);border:1px solid var(--border);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:.9rem;box-shadow:var(--shadow);}
+.divider{height:1px;background:var(--border);margin:20px 0;}
+.help-text{font-size:.78rem;color:var(--muted);}
+</style>
+</head>
+<body>
+<button class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
+<div class="wrap">
+  <div class="card">
+    <div class="error-icon">
+      {% if code == 404 %}<i class="fas fa-magnifying-glass" style="color:var(--primary)"></i>
+      {% elif code == 403 %}<i class="fas fa-shield-halved" style="color:var(--danger)"></i>
+      {% elif code == 500 %}<i class="fas fa-triangle-exclamation" style="color:#f59e0b"></i>
+      {% else %}<i class="fas fa-circle-exclamation" style="color:var(--danger)"></i>
+      {% endif %}
+    </div>
+    <div class="error-code">{{ code }}</div>
+    <div class="error-title">
+      {% if code == 404 %}पृष्ठ Not Found
+      {% elif code == 403 %}Access Denied
+      {% elif code == 500 %}Internal Server Error
+      {% else %}Something Went Wrong
+      {% endif %}
+    </div>
+    <div class="error-msg">
+      {% if message %}{{ message }}{% else %}
+      {% if code == 404 %}The page you're looking for doesn't exist or has been moved.
+      {% elif code == 403 %}You don't have permission to access this resource. Please contact your administrator.
+      {% elif code == 500 %}An unexpected error occurred on the server. Please try again or contact support.
+      {% else %}An error occurred while processing your request.
+      {% endif %}
+      {% endif %}
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      {% if 'user_id' in session %}
+        {% if session.role == 'master' %}
+        <a href="{{ url_for('master.dashboard') }}" class="btn btn-primary"><i class="fas fa-gauge"></i> Go to डैशबोर्ड</a>
+        {% elif session.role == 'super_admin' %}
+        <a href="{{ url_for('super.dashboard') }}" class="btn btn-primary"><i class="fas fa-gauge"></i> Go to डैशबोर्ड</a>
+        {% else %}
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-primary"><i class="fas fa-gauge"></i> Go to डैशबोर्ड</a>
+        {% endif %}
+      {% else %}
+      <a href="{{ url_for('auth.login') }}" class="btn btn-primary"><i class="fas fa-right-to-bracket"></i> Go to Login</a>
+      {% endif %}
+      <a href="javascript:history.back()" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Go वापस</a>
+    </div>
+
+    <div class="divider"></div>
+    <div class="help-text">
+      <i class="fas fa-shield-halved" style="color:var(--primary)"></i>
+      Jail Rehai — Government अपराधी प्रबंधन System
+      {% if code == 403 %}<br>If you believe this is a mistake, contact your system administrator.{% endif %}
+    </div>
+  </div>
+</div>
+<script>
+const t=localStorage.getItem('theme')||'light';document.documentElement.setAttribute('data-theme',t);document.getElementById('themeIcon').classनाम=t==='dark'?'fas fa-sun':'fas fa-moon';
+function toggleTheme(){const c=document.documentElement.getAttribute('data-theme');const n=c==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('theme',n);document.getElementById('themeIcon').classनाम=n==='dark'?'fas fa-sun':'fas fa-moon';}
+</script>
+</body>
+</html>

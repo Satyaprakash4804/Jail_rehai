@@ -1,0 +1,92 @@
+{% extends "shared/base.html" %}
+{% block title %}FIR दर्ज करें{% endblock %}
+{% block page_title %}नई FIR दर्ज करें{% endblock %}
+{% block sidebar_nav %}{% include "shared/super_sidebar.html" %}{% endblock %}
+
+{% block content %}
+<div style="display:flex;gap:8px;margin-bottom:16px">
+  <a href="{{ url_for('super.fir_list') }}" class="btn btn-outline btn-sm">
+    <i class="fas fa-arrow-left"></i> FIR सूची
+  </a>
+  <a href="{{ url_for('super.upload_accused') }}" class="btn btn-outline btn-sm">
+    <i class="fas fa-file-arrow-up"></i> Excel से अपलोड
+  </a>
+</div>
+
+<div class="card" style="max-width:900px">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-plus-circle"></i> FIR मामला दर्ज करें</span>
+  </div>
+  <div class="card-body">
+    <form method="POST">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">थाना <span class="required">*</span></label>
+          <input name="thana" class="form-control" placeholder="जैसे: जमालपुर, कोतवाली" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">FIR संख्या <span class="required">*</span></label>
+          <input name="fir_number" class="form-control" placeholder="जैसे: 0001/2025" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">लागू धाराएँ (Acts/Sections)</label>
+        <textarea name="acts" class="form-control" rows="2"
+          placeholder="जैसे: भारतीय न्याय संहिता 2023 धारा 303, 351, पॉक्सो अधिनियम 7/8"></textarea>
+      </div>
+
+      <div style="background:rgba(26,115,232,.05);border:1px solid rgba(26,115,232,.2);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-weight:700;font-size:.84rem;margin-bottom:10px;color:var(--primary)">
+          <i class="fas fa-users"></i> अभियुक्त — अल्पविराम से अलग करें, S/o से पिता का नाम लिखें
+        </div>
+        <div class="form-text" style="margin-bottom:12px">
+          उदाहरण: <code>रामकुमार s/o श्यामलाल, मोहन सिंह s/o रामसिंह</code>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">कुल अभियुक्त</label>
+          <textarea name="total_accused" class="form-control" rows="2"
+            placeholder="अंकित पाल s/o रामअवतार, अभिषेक विश्वकर्मा s/o शिवकुमार"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">FIR में नामित अभियुक्त</label>
+            <textarea name="fir_accused" class="form-control" rows="2"
+              placeholder="अंकित पाल s/o रामअवतार"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">गिरफ्तार अभियुक्त</label>
+            <textarea name="arrested_accused" class="form-control" rows="2"
+              placeholder="अंकित पाल s/o रामअवतार"></textarea>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">आरोप पत्र (CS) में अभियुक्त</label>
+          <textarea name="cs_accused" class="form-control" rows="2"
+            placeholder="अंकित पाल s/o रामअवतार, अभिषेक विश्वकर्मा s/o शिवकुमार"></textarea>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">वादी (Complainant)</label>
+          <input name="complainant" class="form-control" placeholder="श्री रामभवन">
+        </div>
+        <div class="form-group">
+          <label class="form-label">स्थिति</label>
+          <input name="status" class="form-control" placeholder="CS-01/06/2025 या विचाराधीन">
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save"></i> FIR दर्ज करें
+        </button>
+        <a href="{{ url_for('super.fir_list') }}" class="btn btn-outline">रद्द करें</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

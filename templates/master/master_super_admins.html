@@ -1,0 +1,67 @@
+{% extends "shared/base.html" %}
+{% block title %}Super Admins{% endblock %}
+{% block page_title %}Super Admins Management{% endblock %}
+
+{% block sidebar_nav %}
+<div class="nav-section-title">Management</div>
+<a href="{{ url_for('master.dashboard') }}" class="nav-item"><i class="fas fa-gauge nav-icon"></i> डैशबोर्ड</a>
+<a href="{{ url_for('master.super_admins') }}" class="nav-item active"><i class="fas fa-user-shield nav-icon"></i> Super Admins</a>
+<a href="{{ url_for('master.all_admins') }}" class="nav-item"><i class="fas fa-users nav-icon"></i> All Admins</a>
+<div class="nav-section-title">System</div>
+<a href="{{ url_for('master.logs') }}" class="nav-item"><i class="fas fa-list-check nav-icon"></i> Activity Logs</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-user-shield" style="color:var(--primary)"></i> Super Admins ({{ supers|length }})</span>
+    <a href="{{ url_for('master.create_super_admin') }}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Add Super Admin</a>
+  </div>
+  <div class="card-body" style="padding:0">
+    {% if supers %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>यूज़र ID</th><th>नाम</th><th>पदनाम</th>
+            <th>जिला</th><th>संपर्क</th><th>ईमेल</th>
+            <th>Admins</th><th>Status</th><th>कार्रवाईs</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in supers %}
+          <tr>
+            <td style="color:var(--text-muted)">{{ loop.index }}</td>
+            <td><strong>{{ s.user_id }}</strong></td>
+            <td>{{ s.name }}</td>
+            <td style="color:var(--text-muted)">{{ s.designation or '—' }}</td>
+            <td><i class="fas fa-location-dot" style="color:var(--primary);margin-right:4px"></i>{{ s.district or '—' }}</td>
+            <td>{{ s.contact or '—' }}</td>
+            <td style="font-size:.78rem">{{ s.email }}</td>
+            <td><span class="badge badge-active">{{ s.admin_count }} admins</span></td>
+            <td>
+              <span class="badge {% if s.is_active %}badge-active{% else %}badge-revoked{% endif %}">
+                {% if s.is_active %}<i class="fas fa-check"></i> Active{% else %}<i class="fas fa-ban"></i> Revoked{% endif %}
+              </span>
+            </td>
+            <td style="white-space:nowrap">
+              <a href="{{ url_for('master.edit_user', uid=s.id) }}" class="btn btn-outline btn-xs" title="संपादित करें"><i class="fas fa-pen"></i></a>
+              <form method="POST" action="{{ url_for('master.revoke_user', uid=s.id) }}" style="display:inline">
+                <button class="btn btn-xs {% if s.is_active %}btn-danger{% else %}btn-success{% endif %}" 
+                        onclick="return confirm('{% if s.is_active %}Revoke{% else %}Restore{% endif %} access for {{ s.name }}?')"
+                        title="{% if s.is_active %}Revoke{% else %}Restore{% endif %}">
+                  <i class="fas fa-{% if s.is_active %}ban{% else %}rotate-left{% endif %}"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state"><i class="fas fa-user-shield"></i><p>No super admins found.<br><a href="{{ url_for('master.create_super_admin') }}">Create the first one</a></p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

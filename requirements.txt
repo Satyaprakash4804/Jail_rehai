@@ -1,0 +1,53 @@
+# Flask
+Flask==2.3.3
+Werkzeug==2.3.8
+Flask-Mail==0.10.0
+Flask-Cors==5.0.0
+
+# Database
+mysql-connector-python==8.4.0
+
+# Environment
+python-dotenv==1.0.1
+
+# Cloudinary
+cloudinary==1.41.0
+
+# Images
+Pillow==10.4.0
+opencv-python==4.10.0.84
+numpy==1.26.4
+
+# Face Recognition
+insightface==0.7.3
+onnxruntime==1.18.1
+
+# PDF
+reportlab==4.2.2
+
+# Excel
+openpyxl==3.1.5
+
+# HTTP
+requests==2.32.3
+
+# Socket.IO
+Flask-SocketIO==5.3.6
+python-socketio==5.11.4
+python-engineio==4.9.1
+eventlet==0.40.2
+
+# Production
+gunicorn==22.0.0
+
+# Security
+PyJWT==2.9.0
+cryptography==43.0.1
+
+# Utilities
+pytz==2024.2
+
+# ── Firebase Admin SDK (NEW) ──────────────────────────────────────────────────
+# Provides Firebase Cloud Messaging, Firestore, Auth admin features.
+# Pin to a stable version; 6.x supports FCM HTTP v1 API.
+firebase-admin==6.5.0

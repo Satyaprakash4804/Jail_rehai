@@ -1,0 +1,86 @@
+{% extends "shared/base.html" %}
+{% block title %}Admin डैशबोर्ड{% endblock %}
+{% block page_title %}डैशबोर्ड{% endblock %}
+
+{% block sidebar_nav %}
+{% include "shared/admin_sidebar.html" %}
+{% endblock %}
+
+{% block content %}
+{% if alerts %}
+<div class="bail-alert-banner">
+  <i class="fas fa-triangle-exclamation"></i>
+  <div>
+    <strong>जमानत समाप्ति चेतावनी!</strong>
+    {{ alerts|length }} अभियुक्तों की जमानत 2 दिनों में समाप्त हो रही है।
+    <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px">
+      {% for a in alerts %}
+      <a href="{{ url_for('admin.accused_detail', accused_id=a.id) }}"
+         style="font-size:.78rem;padding:3px 10px;border-radius:20px;background:rgba(220,53,69,.12);color:var(--danger);text-decoration:none">
+        <i class="fas fa-user"></i> {{ a.name }} — {{ a.bail_end_date }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon icon-blue"><i class="fas fa-users"></i></div>
+    <div>
+      <div class="stat-value">{{ stats.accused }}</div>
+      <div class="stat-label">कुल अभियुक्त</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-green"><i class="fas fa-circle-check"></i></div>
+    <div>
+      <div class="stat-value">{{ stats.complete }}</div>
+      <div class="stat-label">पूर्ण प्रोफ़ाइल</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-orange"><i class="fas fa-clock"></i></div>
+    <div>
+      <div class="stat-value">{{ stats.pending }}</div>
+      <div class="stat-label">लंबित प्रोफ़ाइल</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-purple"><i class="fas fa-scale-balanced"></i></div>
+    <div>
+      <div class="stat-value">{{ stats.on_bail }}</div>
+      <div class="stat-label">जमानत पर</div>
+    </div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="fas fa-bolt" style="color:var(--primary)"></i> त्वरित कार्य</span>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+      <a href="{{ url_for('admin.add_fir') }}" class="btn btn-primary"><i class="fas fa-circle-plus"></i> नई FIR दर्ज करें</a>
+      <a href="{{ url_for('admin.upload_accused') }}" class="btn btn-outline"><i class="fas fa-file-arrow-up"></i> बल्क अपलोड (Excel)</a>
+      <a href="{{ url_for('admin.accused_list') }}?status=pending" class="btn btn-outline"><i class="fas fa-clock"></i> देखें लंबित प्रोफ़ाइल</a>
+      <a href="{{ url_for('admin.search_by_photo') }}" class="btn btn-outline"><i class="fas fa-camera-retro"></i> FRS फ़ोटो खोज</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="fas fa-circle-info" style="color:var(--info)"></i> आपका सत्र</span>
+    </div>
+    <div class="card-body">
+      <table style="width:100%;font-size:.84rem">
+        <tr><td style="color:var(--text-muted);padding:5px 0">नाम</td><td><strong>{{ session.name }}</strong></td></tr>
+        <tr><td style="color:var(--text-muted);padding:5px 0">भूमिका</td><td><span class="badge badge-admin">व्यवस्थापक / ऑपरेटर</span></td></tr>
+        <tr><td style="color:var(--text-muted);padding:5px 0">जिला</td><td><strong>{{ session.district }}</strong></td></tr>
+        <tr><td style="color:var(--text-muted);padding:5px 0">यूज़र ID</td><td><code>{{ session.user_id }}</code></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

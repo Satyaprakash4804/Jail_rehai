@@ -1,0 +1,112 @@
+# ==========================
+# Python
+# ==========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# ==========================
+# Flask
+# ==========================
+instance/
+.webassets-cache/
+.flaskenv
+
+# Environment Variables
+.env
+.env.*
+
+# ==========================
+# IDEs
+# ==========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==========================
+# OS Files
+# ==========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==========================
+# Logs
+# ==========================
+logs/
+*.log
+
+# ==========================
+# Database
+# ==========================
+*.db
+*.sqlite
+*.sqlite3
+
+# MySQL Dumps
+*.sql
+
+# ==========================
+# Uploads
+# ==========================
+uploads/
+temp/
+tmp/
+
+# ==========================
+# Build
+# ==========================
+build/
+dist/
+*.egg-info/
+
+# ==========================
+# Testing
+# ==========================
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ==========================
+# Firebase
+# ==========================
+firebase-adminsdk*.json
+serviceAccountKey.json
+# ==========================
+# Secrets
+# ==========================
+config_local.py
+secret.py
+credentials.json
+
+# ==========================
+# Node (if used)
+# ==========================
+node_modules/
+package-lock.json
+
+# ==========================
+# Cloudinary Cache
+# ==========================
+.cloudinary/
+
+# ==========================
+# Generated Files
+# ==========================
+*.csv
+*.pdf
+*.xlsx
+*.xls
+*.zip
+
+/backends
+config.py

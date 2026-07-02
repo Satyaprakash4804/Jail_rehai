@@ -1,0 +1,54 @@
+{% extends "shared/base.html" %}
+{% block title %}बल्क अपलोड Admins{% endblock %}
+{% block page_title %}बल्क अपलोड Admin Accounts{% endblock %}
+{% block sidebar_nav %}
+{% include "shared/super_sidebar.html" %}
+{% endblock %}
+{% block content %}
+<div style="max-width:640px;margin:0 auto">
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-file-csv" style="color:var(--success)"></i> बल्क अपलोड Admin Accounts</span>
+    <a href="{{ url_for('super.admins') }}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> वापस</a>
+  </div>
+  <div class="card-body">
+    <div style="background:rgba(26,115,232,.06);border:1px solid rgba(26,115,232,.15);border-radius:10px;padding:16px;margin-bottom:20px;font-size:.83rem">
+      <div style="font-weight:700;margin-bottom:8px"><i class="fas fa-circle-info" style="color:var(--primary)"></i> Required CSV Columns</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        {% for col in ['user_id','name','designation','contact','email','address','password'] %}
+        <span style="background:var(--primary);color:#fff;padding:2px 8px;border-radius:4px;font-size:.75rem;font-weight:600">{{ col }}</span>
+        {% endfor %}
+      </div>
+      <div style="margin-top:10px;color:var(--text-muted)">
+        • If password is empty, यूज़र ID will be used as default password.<br>
+        • जिला is auto-set to your district ({{ session.district }}).<br>
+        • Duplicate यूज़र IDs or emails will be skipped.
+      </div>
+    </div>
+    <a href="{{ url_for('super.download_admin_sample') }}" class="btn btn-outline" style="margin-bottom:20px">
+      <i class="fas fa-download"></i> Download Sample CSV
+    </a>
+    <form method="POST" enctype="multipart/form-data">
+      <div class="form-group">
+        <label class="form-label">अपलोड करें CSV File <span class="required">*</span></label>
+        <div class="upload-area" onclick="document.getElementById('csvFile').click()" id="dropArea">
+          <i class="fas fa-file-csv" style="color:var(--success)"></i>
+          <div style="margin-top:8px;font-weight:600">Click to select CSV file</div>
+          <div style="font-size:.78rem;margin-top:4px" id="fileनाम">or drag and drop here</div>
+        </div>
+        <input type="file" name="csv_file" id="csvFile" accept=".csv" style="display:none" required onchange="document.getElementById('fileनाम').textContent=this.files[0]?.name||'No file selected'">
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> अपलोड करें & Create Accounts</button>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const da=document.getElementById('dropArea');
+da.addEventListener('dragover',e=>{e.preventDefault();da.classList.add('dragover');});
+da.addEventListener('dragleave',()=>da.classList.remove('dragover'));
+da.addEventListener('drop',e=>{e.preventDefault();da.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f){document.getElementById('csvFile').files=e.dataTransfer.files;document.getElementById('fileनाम').textContent=f.name;}});
+</script>
+{% endblock %}

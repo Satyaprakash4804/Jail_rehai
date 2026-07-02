@@ -1,0 +1,256 @@
+{% extends "shared/base.html" %}
+{% block title %}{{ accused.name }} — अभियुक्त विवरण{% endblock %}
+{% block page_title %}अभियुक्त विवरण{% endblock %}
+{% block sidebar_nav %}{% include "shared/super_sidebar.html" %}{% endblock %}
+
+{% block content %}
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+  <a href="{{ url_for('super.accused_list') }}" class="btn btn-outline btn-sm">
+    <i class="fas fa-arrow-left"></i> सूची पर वापस
+  </a>
+</div>
+
+<div style="display:grid;grid-template-columns:220px 1fr;gap:20px" class="detail-grid">
+
+  {# ── Left: Photo + Upload ── #}
+  <div class="detail-photo-col">
+    <div class="card" style="padding:16px;text-align:center">
+      {% if accused.photo_url %}
+      <img src="{{ accused.photo_url }}" class="detail-photo" style="margin-bottom:12px">
+      {% else %}
+      <div class="photo-placeholder" style="width:100%;aspect-ratio:1;font-size:3rem;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--border);margin-bottom:12px">
+        <i class="fas fa-user"></i>
+      </div>
+      {% endif %}
+      <span class="badge {% if accused.profile_status=='complete' %}badge-complete{% else %}badge-pending{% endif %}" style="margin-bottom:12px">
+        {% if accused.profile_status=='complete' %}पूर्ण{% else %}लंबित{% endif %}
+      </span>
+      <form action="{{ url_for('super.upload_accused_photo', accused_id=accused.id) }}" method="POST" enctype="multipart/form-data">
+        <input type="file" name="photo" accept="image/*" class="form-control" style="font-size:.75rem;margin-bottom:8px">
+        <button type="submit" class="btn btn-primary btn-sm" style="width:100%">
+          <i class="fas fa-camera"></i> फ़ोटो अपलोड
+        </button>
+      </form>
+    </div>
+
+    {# Photo history #}
+    {% if photos %}
+    <div class="card" style="padding:14px">
+      <div style="font-weight:700;font-size:.82rem;margin-bottom:10px">📷 फ़ोटो इतिहास</div>
+      <div class="photos-history">
+        {% for p in photos %}
+        <img src="{{ p.photo_url }}" onclick="openLightbox('{{ p.photo_url }}','फ़ोटो')"
+             {% if p.is_current %}class="current"{% endif %} title="{{ p.uploaded_at }}">
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── Right: Details ── #}
+  <div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <span class="card-title"><i class="fas fa-user"></i> {{ accused.name }}</span>
+        <span class="badge badge-info">ID: {{ accused.id }}</span>
+      </div>
+      <div class="card-body">
+        <div class="info-grid">
+          <div class="info-item">
+            <label>अभियुक्त का नाम</label>
+            <span style="font-size:1rem;font-weight:800">{{ accused.name }}</span>
+          </div>
+          <div class="info-item">
+            <label>पिता का नाम (S/o)</label>
+            <span>{{ accused.fathers_name }}</span>
+          </div>
+          {% if accused.dob %}
+          <div class="info-item">
+            <label>जन्म तिथि</label>
+            <span>{{ accused.dob }}</span>
+          </div>
+          {% endif %}
+          {% if accused.address %}
+          <div class="info-item" style="grid-column:1/-1">
+            <label>पता</label>
+            <span>{{ accused.address }}</span>
+          </div>
+          {% endif %}
+          <div class="info-item">
+            <label>कुल FIR मामले</label>
+            <span class="badge badge-bail">{{ firs|length }} FIR</span>
+          </div>
+          <div class="info-item">
+            <label>दर्ज तिथि</label>
+            <span>{{ accused.created_at.strftime('%d %b %Y') if accused.created_at else '—' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Bail (जमानत) status — ONLY relevant if accused was arrested ── #}
+    <div class="card" style="margin-bottom:16px;border:1px solid rgba(156,39,176,.2)">
+      <div class="card-header" style="background:rgba(156,39,176,.05)">
+        <span class="card-title" style="color:var(--badge-bail)"><i class="fas fa-scale-balanced"></i> जमानत (Bail)</span>
+        {% if has_active_bail %}
+        <span class="badge {% if accused.bail_status=='permanent' %}badge-complete{% else %}badge-bail{% endif %}">
+          {% if accused.bail_status=='permanent' %}स्थायी जमानत{% else %}अस्थायी जमानत{% endif %}
+        </span>
+        {% elif is_arrested %}
+        <span class="badge badge-revoked">गिरफ़्तार — जमानत लंबित</span>
+        {% else %}
+        <span class="badge badge-pending">गिरफ़्तार नहीं</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        {% if has_active_bail %}
+        <div class="info-grid" style="margin-bottom:12px">
+          <div class="info-item"><label>शुरुआत तिथि</label><span>{{ accused.bail_start_date or '—' }}</span></div>
+          <div class="info-item"><label>समाप्ति तिथि</label><span>{{ accused.bail_end_date or 'स्थायी' }}</span></div>
+          <div class="info-item"><label>जोखिम रेटिंग</label><span>{{ '★'*(accused.bail_rating or 0) }}{{ '☆'*(5-(accused.bail_rating or 0)) }}</span></div>
+          {% if accused.bail_remark %}
+          <div class="info-item" style="grid-column:1/-1"><label>टिप्पणी</label><span>{{ accused.bail_remark }}</span></div>
+          {% endif %}
+        </div>
+        {% if accused.bail_photo_url %}
+        <div style="margin-bottom:12px">
+          <label class="form-label" style="display:block;margin-bottom:6px">जमानत के समय की geo-tagged फ़ोटो</label>
+          <img src="{{ accused.bail_photo_url }}" alt="Bail geo photo"
+               onclick="openLightbox('{{ accused.bail_photo_url }}','जमानत फ़ोटो — {{ accused.bail_photo_captured_at }}')"
+               style="width:140px;height:140px;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:pointer">
+          {% if accused.bail_photo_lat and accused.bail_photo_lng %}
+          <div class="form-text" style="margin-top:4px">
+            <i class="fas fa-location-dot"></i> {{ accused.bail_photo_lat }}, {{ accused.bail_photo_lng }}
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+        <form method="POST" action="{{ url_for('super.revoke_bail_accused', accused_id=accused.id) }}" onsubmit="return confirm('क्या आप वाकई इस जमानत को रद्द करना चाहते हैं?');" style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="text" name="revoke_reason" class="form-control" placeholder="रद्द करने का कारण (वैकल्पिक)" style="flex:1;min-width:200px">
+          <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-ban"></i> जमानत रद्द करें</button>
+        </form>
+        {% elif is_arrested %}
+        <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:10px">
+          यह अभियुक्त {{ arrest_firs|length }} FIR में गिरफ़्तार दर्शाया गया है। जमानत केवल गिरफ़्तार अभियुक्तों के लिए स्वीकृत की जा सकती है।
+        </p>
+        <a href="{{ url_for('super.approve_bail', accused_id=accused.id) }}" class="btn btn-primary btn-sm">
+          <i class="fas fa-scale-balanced"></i> जमानत स्वीकृत करें
+        </a>
+        {% else %}
+        <p style="font-size:.85rem;color:var(--text-muted)">यह अभियुक्त किसी FIR में गिरफ़्तार नहीं है, इसलिए जमानत लागू नहीं होती।</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ── Full bail history — persists across every FIR/arrest, never deleted ── #}
+    {% if bail_history %}
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <span class="card-title"><i class="fas fa-clock-rotate-left"></i> जमानत इतिहास ({{ bail_history|length }})</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>FIR</th><th>प्रकार</th><th>शुरुआत</th><th>समाप्ति</th>
+              <th>स्थिति</th><th>स्वीकृतकर्ता</th><th>फ़ोटो</th><th>दस्तावेज़</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in bail_history %}
+            <tr>
+              <td style="font-weight:700;color:var(--primary)">{{ b.fir_number }}/{{ b.thana }}</td>
+              <td>{% if b.bail_type=='permanent' %}स्थायी{% else %}अस्थायी{% endif %}</td>
+              <td>{{ b.bail_start_date or '—' }}</td>
+              <td>{{ b.bail_end_date or '—' }}</td>
+              <td>
+                {% if b.bail_history_status=='ACTIVE' %}<span class="badge badge-bail">सक्रिय</span>
+                {% elif b.bail_history_status=='REVOKED' %}<span class="badge badge-revoked">रद्द</span>
+                {% else %}<span class="badge badge-complete">पूर्ण</span>{% endif %}
+              </td>
+              <td style="font-size:.78rem">{{ b.approved_by_name or '—' }}</td>
+              <td>
+                {% if b.bail_photo_url %}
+                <img src="{{ b.bail_photo_url }}" alt="Bail geo photo"
+                     onclick="openLightbox('{{ b.bail_photo_url }}','जमानत फ़ोटो — {{ b.fir_number }}/{{ b.thana }}')"
+                     style="width:36px;height:36px;object-fit:cover;border-radius:6px;cursor:pointer" title="{{ b.bail_photo_lat }}, {{ b.bail_photo_lng }} — {{ b.bail_photo_captured_at }}">
+                {% else %}—{% endif %}
+              </td>
+              <td>
+                {% if b.bail_document_url %}
+                <a href="{{ b.bail_document_url }}" target="_blank" class="btn btn-outline btn-xs"><i class="fas fa-file"></i></a>
+                {% else %}—{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── FIR Cases linked to this accused ── #}
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="fas fa-file-lines"></i> FIR मामले ({{ firs|length }})</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>FIR संख्या</th>
+              <th>थाना</th>
+              <th>जनपद</th>
+              <th>धाराएँ</th>
+              <th>कुल अभियुक्त</th>
+              <th>FIR में</th>
+              <th>गिरफ्तार</th>
+              <th>आरोप पत्र</th>
+              <th>वादी</th>
+              <th>स्थिति</th>
+              <th>विवरण</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fir in firs %}
+            <tr>
+              <td style="font-weight:700;color:var(--primary)">{{ fir.fir_number }}</td>
+              <td>{{ fir.thana }}</td>
+              <td>{{ fir.district }}</td>
+              <td style="font-size:.78rem;max-width:200px">{{ fir.acts or '—' }}</td>
+              <td style="text-align:center">
+                <span class="badge badge-info">{{ fir.total_accused_count }}</span>
+              </td>
+              <td style="text-align:center">
+                {% if fir.in_fir_accused %}<span class="badge badge-complete">✓</span>{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
+              </td>
+              <td style="text-align:center">
+                {% if fir.in_arrested %}<span class="badge badge-revoked"><i class="fas fa-handcuffs"></i></span>{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
+              </td>
+              <td style="text-align:center">
+                {% if fir.in_cs_accused %}<span class="badge badge-bail">✓</span>{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
+              </td>
+              <td style="font-size:.78rem">{{ fir.complainant or '—' }}</td>
+              <td><span class="badge badge-info" style="font-size:.65rem">{{ fir.status or '—' }}</span></td>
+              <td>
+                <a href="{{ url_for('super.fir_detail', fir_id=fir.id) }}" class="btn btn-outline btn-xs">
+                  <i class="fas fa-eye"></i>
+                </a>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="11" class="empty-state"><p>कोई FIR लिंक नहीं है।</p></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="id-lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()"><i class="fas fa-xmark"></i></button>
+  <img id="lightbox-img" src="" alt="">
+  <div class="lightbox-label" id="lightbox-label"></div>
+</div>
+{% endblock %}

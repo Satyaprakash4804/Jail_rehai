@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="hi" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login | Jail Rehai - अपराधी प्रबंधन System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+:root{
+--primary:#0b5ed7;--primary2:#2563eb;--success:#16a34a;--danger:#dc2626;
+--bg:#eef4ff;--card:rgba(255,255,255,.88);--text:#1d2939;--muted:#667085;
+--border:rgba(255,255,255,.35);--input:#fff;--shadow:0 20px 60px rgba(0,0,0,.15);
+}
+[data-theme="dark"]{
+--bg:#08111f;--card:rgba(18,25,40,.92);--text:#eef4ff;--muted:#a8b3c7;
+--border:rgba(255,255,255,.08);--input:#1d2638;--shadow:0 20px 60px rgba(0,0,0,.45);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+font-family:'Noto Sans Devanagari',Poppins,sans-serif;color:var(--text);
+background:linear-gradient(-45deg,#dcecff,#eef4ff,#d9e8ff,#f8fbff);
+background-size:400% 400%;
+animation:bg 16s ease infinite;
+min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;overflow:hidden;
+}
+@keyframes bg{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
+body:before,body:after{content:"";position:fixed;border-radius:50%;filter:blur(80px);z-index:-1}
+body:before{width:360px;height:360px;background:#0b5ed733;left:-100px;top:-80px}
+body:after{width:320px;height:320px;background:#06b6d433;right:-80px;bottom:-100px}
+.theme{position:fixed;top:18px;right:18px;width:44px;height:44px;border:none;border-radius:50%;background:var(--card);backdrop-filter:blur(18px);box-shadow:var(--shadow);cursor:pointer;color:var(--text)}
+.wrap{width:100%;max-width:430px}
+.header{text-align:center;margin-bottom:20px}
+.logo{width:86px;height:86px;border-radius:50%;background:linear-gradient(135deg,#0b5ed7,#3b82f6);margin:auto;display:flex;align-items:center;justify-content:center;color:#fff;font-size:36px;box-shadow:0 15px 35px rgba(37,99,235,.35)}
+h1{font-size:28px;margin:14px 0 5px}
+.sub{font-size:13px;color:var(--muted);letter-spacing:1px}
+.flag{height:4px;background:linear-gradient(90deg,#ff9933,#fff,#138808);border-radius:4px;margin:14px auto;width:220px}
+.card{background:var(--card);backdrop-filter:blur(20px);padding:34px;border-radius:24px;border:1px solid var(--border);box-shadow:var(--shadow)}
+.title{font-size:24px;font-weight:700}
+.desc{font-size:13px;color:var(--muted);margin:6px 0 24px}
+.group{margin-bottom:20px;position:relative}
+.group input{width:100%;height:56px;border-radius:14px;border:1px solid #d8dee9;background:var(--input);padding:20px 46px 8px;font-size:15px;color:var(--text);outline:none}
+.group label{position:absolute;left:46px;top:18px;color:var(--muted);transition:.25s;background:transparent}
+.group input:focus+label,.group input:not(:placeholder-shown)+label{top:6px;font-size:11px;color:var(--primary)}
+.group i.left{position:absolute;left:16px;top:20px;color:var(--muted)}
+.eye{position:absolute;right:16px;top:20px;border:none;background:none;cursor:pointer;color:var(--muted)}
+.opts{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin:8px 0 18px}
+.opts a{text-decoration:none;color:var(--primary)}
+.btn{width:100%;height:54px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-weight:600;font-size:16px;cursor:pointer;transition:.25s;box-shadow:0 14px 28px rgba(37,99,235,.35)}
+.btn:hover{transform:translateY(-2px)}
+.caps{display:none;color:#b45309;font-size:12px;margin-top:6px}
+.footer{text-align:center;margin-top:18px;font-size:12px;color:var(--muted)}
+.alert{padding:12px;border-radius:12px;margin-bottom:16px}
+.alert-success{background:#dcfce7;color:#166534}
+.alert-danger{background:#fee2e2;color:#991b1b}
+@keyframes shake{20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}100%{transform:none}}
+.shake{animation:shake .45s}
+@media(max-width:520px){.card{padding:24px}h1{font-size:24px}.logo{width:72px;height:72px;font-size:30px}}
+</style>
+</head>
+<body>
+<button class="theme" onclick="toggleTheme()"><i id="themeIcon" class="fas fa-moon"></i></button>
+<div class="wrap">
+<div class="header">
+<div class="logo"><i class="fas fa-shield-halved"></i></div>
+<h1>Jail Rehai</h1>
+<div class="sub">अपराध प्रबंधन प्रणाली</div>
+<div class="flag"></div>
+</div>
+<div class="card" id="card">
+<div class="title">स्वागत है</div>
+<div class="desc">सुरक्षित रूप से जारी रखने के लिए साइन इन करें।</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for cat,msg in messages %}
+<div class="alert alert-{{cat}}">{{msg}}</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
+
+<form method="POST" action="{{ url_for('auth.login') }}" id="loginForm">
+<div class="group">
+<i class="fas fa-id-badge left"></i>
+<input type="text" name="user_id" placeholder=" " required autocomplete="username">
+<label>यूज़र ID</label>
+</div>
+
+<div class="group">
+<i class="fas fa-lock left"></i>
+<input type="password" id="password" name="password" placeholder=" " required autocomplete="current-password">
+<label>पासवर्ड</label>
+<button type="button" class="eye" onclick="togglePass()"><i id="eye" class="fas fa-eye"></i></button>
+<div class="caps" id="caps">⚠ Caps Lock is ON</div>
+</div>
+
+<div class="opts">
+<label><input type="checkbox"> याद रखें</label>
+<a href="{{ url_for('auth.forgot_password') }}">पासवर्ड भूल गए?</a>
+</div>
+
+<button class="btn" id="btn"><i class="fas fa-right-to-bracket"></i> सुरक्षित लॉगिन</button>
+</form>
+</div>
+
+<div class="footer">
+🔒 सुरक्षित सरकारी पोर्टल • अनधिकृत पहुँच वर्जित है।
+</div>
+</div>
+
+<script>
+const t=localStorage.getItem("theme")||"light";
+document.documentElement.dataset.theme=t;
+themeIcon.classनाम=t==="dark"?"fas fa-sun":"fas fa-moon";
+function toggleTheme(){
+let n=document.documentElement.dataset.theme==="light"?"dark":"light";
+document.documentElement.dataset.theme=n;
+localStorage.setItem("theme",n);
+themeIcon.classनाम=n==="dark"?"fas fa-sun":"fas fa-moon";
+}
+function togglePass(){
+let p=password,e=document.getElementById("eye");
+if(p.type==="password"){p.type="text";e.classनाम="fas fa-eye-slash";}
+else{p.type="password";e.classनाम="fas fa-eye";}
+}
+password.addEventListener("keyup",e=>{
+caps.style.display=e.getModifierState("CapsLock")?"block":"none";
+});
+loginForm.addEventListener("submit",()=>{
+btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Signing In...';
+btn.disabled=true;
+});
+</script>
+</body>
+</html>

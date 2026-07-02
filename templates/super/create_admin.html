@@ -1,0 +1,63 @@
+{% extends "shared/base.html" %}
+{% block title %}व्यवस्थापक बनाएँ{% endblock %}
+{% block page_title %}Create व्यवस्थापक / ऑपरेटर{% endblock %}
+{% block sidebar_nav %}
+{% include "shared/super_sidebar.html" %}
+{% endblock %}
+{% block content %}
+<div style="max-width:700px;margin:0 auto">
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-user-plus" style="color:var(--primary)"></i> व्यवस्थापक बनाएँ Account</span>
+    <a href="{{ url_for('super.admins') }}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> वापस</a>
+  </div>
+  <div class="card-body">
+    <form method="POST">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">यूज़र ID <span class="required">*</span></label>
+          <input type="text" name="user_id" class="form-control" value="{{ form.get('user_id','') }}" placeholder="e.g. ADM001" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Full नाम <span class="required">*</span></label>
+          <input type="text" name="name" class="form-control" value="{{ form.get('name','') }}" placeholder="Officer's full name" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">पदनाम</label>
+          <input type="text" name="designation" class="form-control" value="{{ form.get('designation','') }}" placeholder="e.g. Head Constable">
+        </div>
+        <div class="form-group">
+          <label class="form-label">संपर्क</label>
+          <input type="text" name="contact" class="form-control" value="{{ form.get('contact','') }}" placeholder="10-digit number" maxlength="15">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ईमेल <span class="required">*</span></label>
+          <input type="email" name="email" class="form-control" value="{{ form.get('email','') }}" required placeholder="officer@domain.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">जिला</label>
+          <input type="text" class="form-control" value="{{ session.district }}" readonly style="opacity:.7">
+          <div class="form-text"><i class="fas fa-lock" style="font-size:.7rem"></i> Auto-set to your district</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">पता / Station</label>
+        <textarea name="address" class="form-control" rows="2" placeholder="Office/Station address">{{ form.get('address','') }}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">पासवर्ड <span class="required">*</span></label>
+        <input type="password" name="password" class="form-control" placeholder="Set login password (min 6 chars)" required minlength="6">
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> व्यवस्थापक बनाएँ</button>
+        <a href="{{ url_for('super.admins') }}" class="btn btn-outline">रद्द करें</a>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}

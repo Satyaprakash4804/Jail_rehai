@@ -1,0 +1,159 @@
+{% extends "shared/base.html" %}
+{% block title %}अभियुक्त जमानत इतिहास{% endblock %}
+{% block page_title %}अभियुक्त जमानत इतिहास — {{ session.district }}{% endblock %}
+
+{% block sidebar_nav %}
+{% include "shared/admin_sidebar.html" %}
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+  <a href="?status=ACTIVE&per_page={{ per_page }}"
+     class="btn btn-sm {% if status_filter=='ACTIVE' %}btn-success{% else %}btn-outline{% endif %}">
+    <i class="fas fa-circle-check"></i> सक्रिय जमानत
+  </a>
+  <a href="?status=REVOKED&per_page={{ per_page }}"
+     class="btn btn-sm {% if status_filter=='REVOKED' %}btn-danger{% else %}btn-outline{% endif %}">
+    <i class="fas fa-ban"></i> रद्द
+  </a>
+  <a href="?status=COMPLETED&per_page={{ per_page }}"
+     class="btn btn-sm {% if status_filter=='COMPLETED' %}btn-warning{% else %}btn-outline{% endif %}">
+    <i class="fas fa-check-double"></i> पूर्ण
+  </a>
+  <a href="?status=ALL&per_page={{ per_page }}"
+     class="btn btn-sm {% if status_filter not in ('ACTIVE','REVOKED','COMPLETED') %}btn-primary{% else %}btn-outline{% endif %}">
+    <i class="fas fa-list"></i> संपूर्ण इतिहास
+  </a>
+</div>
+
+<div class="card" style="margin-bottom:16px">
+  <div class="card-body" style="padding:12px 16px">
+    <form method="get" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+      <input type="hidden" name="status" value="{{ status_filter }}">
+      <div style="flex:2;min-width:180px;position:relative">
+        <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.8rem"></i>
+        <input type="text" name="search" class="form-control" style="padding-left:30px"
+               placeholder="अभियुक्त का नाम / पिता का नाम…" value="{{ search }}">
+      </div>
+      <select name="bail_type" class="form-control form-select" style="width:auto">
+        <option value="">सभी प्रकार</option>
+        <option value="temporary" {% if bail_type_filter=='temporary' %}selected{% endif %}>अस्थायी</option>
+        <option value="permanent" {% if bail_type_filter=='permanent' %}selected{% endif %}>स्थायी</option>
+      </select>
+      <select name="per_page" class="form-control form-select" style="width:auto">
+        {% for n in [10,25,50,100] %}
+        <option value="{{ n }}" {% if per_page==n %}selected{% endif %}>{{ n }}/page</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter"></i> फ़िल्टर</button>
+      <a href="?status={{ status_filter }}" class="btn btn-outline btn-sm"><i class="fas fa-rotate-left"></i> रीसेट</a>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">
+      <i class="fas fa-scale-balanced" style="color:var(--badge-bail)"></i>
+      अभियुक्त जमानत इतिहास
+      <span style="font-size:.78rem;color:var(--text-muted);font-weight:400;margin-left:6px">{{ total }} रिकॉर्ड</span>
+    </span>
+  </div>
+  <div class="table-wrap">
+    {% if bail_records %}
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>फ़ोटो</th><th>अभियुक्त</th><th>FIR / थाना</th>
+          <th>प्रकार</th><th>स्वीकृत</th><th>शुरुआत</th><th>समाप्ति</th>
+          <th>जोखिम</th><th>स्थिति</th><th>स्वीकृतकर्ता</th><th>दस्तावेज़</th><th>कार्रवाई</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in bail_records %}
+        <tr>
+          <td style="color:var(--text-muted);font-size:.75rem">{{ loop.index + (page-1)*per_page }}</td>
+          <td>
+            {% if b.photo_url %}
+            <img src="{{ b.photo_url }}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--border)">
+            {% else %}
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;border:1px solid var(--border)">
+              <i class="fas fa-user" style="color:var(--text-muted);font-size:.8rem"></i>
+            </div>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('admin.accused_detail', accused_id=b.id) }}" style="font-weight:600;color:var(--primary);text-decoration:none">{{ b.name }}</a>
+            <div style="font-size:.72rem;color:var(--text-muted)">S/o {{ b.fathers_name }}</div>
+          </td>
+          <td><code style="font-size:.75rem">{{ b.fir_number }}</code><div style="font-size:.72rem;color:var(--text-muted)">{{ b.thana }}</div></td>
+          <td>
+            {% if b.bail_type == 'temporary' %}
+            <span class="badge" style="background:rgba(255,152,0,.15);color:#e65100"><i class="fas fa-hourglass-half"></i> अस्थायी</span>
+            {% else %}
+            <span class="badge" style="background:rgba(220,53,69,.12);color:var(--danger)"><i class="fas fa-infinity"></i> स्थायी</span>
+            {% endif %}
+          </td>
+          <td style="font-size:.78rem">{{ b.approved_at.strftime('%d-%m-%Y') if b.approved_at else '—' }}</td>
+          <td style="font-size:.78rem">{{ b.bail_start_date or '—' }}</td>
+          <td style="font-size:.78rem">
+            {% if b.bail_type == 'temporary' %}
+              {% if b.bail_end_date %}<span style="color:var(--danger);font-weight:600">{{ b.bail_end_date }}</span>{% else %}—{% endif %}
+            {% else %}<span style="color:var(--text-muted);font-style:italic">स्थायी</span>{% endif %}
+          </td>
+          <td style="color:var(--warning);font-size:.85rem">
+            {% if b.bail_rating %}{% for i in range(b.bail_rating) %}★{% endfor %}{% else %}—{% endif %}
+          </td>
+          <td>
+            {% if b.bail_history_status == 'ACTIVE' %}
+            <span class="badge badge-active"><i class="fas fa-circle-check"></i> सक्रिय</span>
+            {% elif b.bail_history_status == 'REVOKED' %}
+            <span class="badge badge-revoked"><i class="fas fa-ban"></i> रद्द</span>
+            {% else %}
+            <span class="badge badge-pending"><i class="fas fa-check-double"></i> पूर्ण</span>
+            {% endif %}
+          </td>
+          <td style="font-size:.76rem;color:var(--text-muted)">{{ b.approved_by_name or '—' }}</td>
+          <td>
+            {% if b.bail_document_url %}
+            <a href="{{ b.bail_document_url }}" target="_blank" class="btn btn-xs btn-outline"><i class="fas fa-file"></i> देखें</a>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('admin.accused_detail', accused_id=b.id) }}" class="btn btn-xs btn-outline"><i class="fas fa-eye"></i></a>
+            {% if b.bail_history_status == 'ACTIVE' %}
+            <form method="post" action="{{ url_for('admin.revoke_bail_accused', accused_id=b.id) }}"
+                  onsubmit="return confirm('{{ b.name }} की जमानत रद्द करें?')" style="display:inline">
+              <input type="hidden" name="revoke_reason" value="">
+              <button type="submit" class="btn btn-xs btn-danger"><i class="fas fa-ban"></i></button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="padding:14px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border)">
+      <div style="display:flex;gap:4px">
+        {% if page > 1 %}
+        <a href="?page={{ page-1 }}&status={{ status_filter }}&bail_type={{ bail_type_filter }}&search={{ search }}&per_page={{ per_page }}" class="btn btn-xs btn-outline"><i class="fas fa-chevron-left"></i></a>
+        {% endif %}
+        {% for p in range([1,page-2]|max, [total_pages+1,page+3]|min) %}
+        <a href="?page={{ p }}&status={{ status_filter }}&bail_type={{ bail_type_filter }}&search={{ search }}&per_page={{ per_page }}"
+           class="btn btn-xs {% if p==page %}btn-primary{% else %}btn-outline{% endif %}">{{ p }}</a>
+        {% endfor %}
+        {% if page < total_pages %}
+        <a href="?page={{ page+1 }}&status={{ status_filter }}&bail_type={{ bail_type_filter }}&search={{ search }}&per_page={{ per_page }}" class="btn btn-xs btn-outline"><i class="fas fa-chevron-right"></i></a>
+        {% endif %}
+      </div>
+      <span style="font-size:.75rem;color:var(--text-muted)">पृष्ठ {{ page }} में से {{ total_pages }} — कुल {{ total }}</span>
+    </div>
+    {% else %}
+    <div style="padding:48px;text-align:center;color:var(--text-muted)">
+      <i class="fas fa-scale-balanced" style="font-size:2.5rem;margin-bottom:12px;display:block;opacity:.25"></i>
+      <p>कोई जमानत रिकॉर्ड नहीं मिला{% if search %} "{{ search }}" के लिए{% endif %}।</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

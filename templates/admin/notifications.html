@@ -1,0 +1,58 @@
+{% extends "shared/base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+
+{% block sidebar_nav %}
+{% include "shared/admin_sidebar.html" %}
+{% endblock %}
+
+{% block content %}
+<div style="max-width:780px">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title"><i class="fas fa-bell" style="color:var(--primary)"></i> सभी सूचनाएँ</span>
+      <span style="font-size:.76rem;color:var(--text-muted)">{{ notifications|length }} सूचना(एँ) — खोलने पर पढ़ी हुई मानी जाएंगी</span>
+    </div>
+    <div style="padding:0">
+      {% if notifications %}
+      {% for n in notifications %}
+      {% set type_icon = {
+        'bail_granted': 'fa-scale-balanced',
+        'bail_expiry':  'fa-triangle-exclamation',
+        'info':         'fa-circle-info'
+      }.get(n.type, 'fa-bell') %}
+      {% set type_color = {
+        'bail_granted': '#9c27b0',
+        'bail_expiry':  '#dc3545',
+        'info':         '#1a73e8'
+      }.get(n.type, '#6c757d') %}
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;gap:14px;align-items:flex-start;
+                  {% if not n.is_read %}background:rgba(26,115,232,.03){% endif %}">
+        <div style="width:38px;height:38px;border-radius:50%;background:{{ type_color }}1a;display:flex;
+                    align-items:center;justify-content:center;flex-shrink:0;margin-top:2px">
+          <i class="fas {{ type_icon }}" style="color:{{ type_color }};font-size:.9rem"></i>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <strong style="font-size:.88rem">{{ n.title }}</strong>
+            {% if not n.is_read %}
+            <span style="background:var(--primary);color:#fff;font-size:.6rem;padding:1px 7px;border-radius:10px;font-weight:700">NEW</span>
+            {% endif %}
+          </div>
+          <div style="font-size:.82rem;color:var(--text-muted);line-height:1.5">{{ n.message|safe }}</div>
+          <div style="font-size:.72rem;color:var(--text-muted);margin-top:6px">
+            <i class="fas fa-clock" style="margin-right:4px"></i>{{ n.created_at }}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div style="padding:56px;text-align:center;color:var(--text-muted)">
+        <i class="fas fa-bell-slash" style="font-size:2.5rem;opacity:.25;display:block;margin-bottom:12px"></i>
+        <p>अभी कोई सूचना नहीं। आपके जिले में जमानत मंजूर होने पर यहाँ सूचना मिलेगी।</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
