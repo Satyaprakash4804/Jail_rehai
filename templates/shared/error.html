@@ -4,22 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ code }} Error | Jail Rehai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-:root{--bg:#f0f2f5;--card:#fff;--text:#1a1a2e;--muted:#6c757d;--border:#dee2e6;--primary:#1a73e8;--danger:#dc3545;--shadow:0 4px 24px rgba(0,0,0,.08);}
-[data-theme="dark"]{--bg:#0d1117;--card:#161b27;--text:#e0e6f0;--muted:#8b9dc3;--border:#2a3348;}
+:root{--bg:#eef1f6;--card:#fff;--text:#16233a;--muted:#5b6a82;--border:#dde3ec;--primary:#0d3b66;--primary-dark:#082a4a;--gold:#c99a2e;--gold-dark:#a67c1e;--danger:#c62828;--shadow:0 10px 34px rgba(10,38,71,.14);}
+[data-theme="dark"]{--bg:#080d16;--card:#131a28;--text:#e7ecf5;--muted:#93a2ba;--border:#232e42;}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;transition:background .3s,color .3s;}
+body{font-family:'Noto Sans Devanagari','Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;transition:background .3s,color .3s;}
+.gov-strip{position:fixed;top:0;left:0;width:100%;height:4px;background:linear-gradient(90deg,#FF9933 0 33.33%,#ffffff 33.33% 66.66%,#138808 66.66% 100%);z-index:20}
 .wrap{width:100%;max-width:480px;text-align:center;}
-.error-icon{font-size:5rem;margin-bottom:20px;line-height:1;}
-.error-code{font-size:6rem;font-weight:900;line-height:1;background:linear-gradient(135deg,var(--primary),#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.error-title{font-size:1.4rem;font-weight:700;margin:12px 0 8px;}
+.error-icon{font-size:4.6rem;margin-bottom:18px;line-height:1;}
+.error-code{font-size:5.6rem;font-weight:900;line-height:1;background:linear-gradient(135deg,var(--primary),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.error-title{font-size:1.4rem;font-weight:800;margin:12px 0 8px;}
 .error-msg{font-size:.9rem;color:var(--muted);margin-bottom:28px;line-height:1.6;}
-.card{background:var(--card);border-radius:16px;padding:40px 32px;box-shadow:var(--shadow);border:1px solid var(--border);}
-.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:8px;border:none;font-size:.88rem;font-weight:600;cursor:pointer;text-decoration:none;transition:all .2s;margin:4px;}
-.btn-primary{background:var(--primary);color:#fff;}
-.btn-primary:hover{background:#1557b0;}
-.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);}
+.card{background:var(--card);border-radius:18px;padding:40px 32px;box-shadow:var(--shadow);border:1px solid var(--border);position:relative;overflow:hidden;}
+.card:before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--gold));}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:9px;border:none;font-size:.88rem;font-weight:700;cursor:pointer;text-decoration:none;transition:all .2s;margin:4px;font-family:inherit;}
+.btn-primary{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;box-shadow:0 10px 22px rgba(13,59,102,.28);}
+.btn-primary:hover{filter:brightness(1.07);transform:translateY(-1px);}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--text);}
 .btn-outline:hover{background:var(--bg);}
 .theme-toggle{position:fixed;top:16px;right:16px;background:var(--card);border:1px solid var(--border);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:.9rem;box-shadow:var(--shadow);}
 .divider{height:1px;background:var(--border);margin:20px 0;}
@@ -27,13 +32,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 </style>
 </head>
 <body>
+<div class="gov-strip"></div>
 <button class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
 <div class="wrap">
   <div class="card">
     <div class="error-icon">
       {% if code == 404 %}<i class="fas fa-magnifying-glass" style="color:var(--primary)"></i>
       {% elif code == 403 %}<i class="fas fa-shield-halved" style="color:var(--danger)"></i>
-      {% elif code == 500 %}<i class="fas fa-triangle-exclamation" style="color:#f59e0b"></i>
+      {% elif code == 500 %}<i class="fas fa-triangle-exclamation" style="color:var(--gold-dark)"></i>
       {% else %}<i class="fas fa-circle-exclamation" style="color:var(--danger)"></i>
       {% endif %}
     </div>
@@ -72,15 +78,15 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
     <div class="divider"></div>
     <div class="help-text">
-      <i class="fas fa-shield-halved" style="color:var(--primary)"></i>
-      Jail Rehai — Government अपराधी प्रबंधन System
+      <i class="fas fa-shield-halved" style="color:var(--gold-dark)"></i>
+      Jail Rehai — उत्तर प्रदेश पुलिस अपराधी प्रबंधन System
       {% if code == 403 %}<br>If you believe this is a mistake, contact your system administrator.{% endif %}
     </div>
   </div>
 </div>
 <script>
-const t=localStorage.getItem('theme')||'light';document.documentElement.setAttribute('data-theme',t);document.getElementById('themeIcon').classनाम=t==='dark'?'fas fa-sun':'fas fa-moon';
-function toggleTheme(){const c=document.documentElement.getAttribute('data-theme');const n=c==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('theme',n);document.getElementById('themeIcon').classनाम=n==='dark'?'fas fa-sun':'fas fa-moon';}
+const t=localStorage.getItem('theme')||'light';document.documentElement.setAttribute('data-theme',t);document.getElementById('themeIcon').className=t==='dark'?'fas fa-sun':'fas fa-moon';
+function toggleTheme(){const c=document.documentElement.getAttribute('data-theme');const n=c==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('theme',n);document.getElementById('themeIcon').className=n==='dark'?'fas fa-sun':'fas fa-moon';}
 </script>
 </body>
 </html>

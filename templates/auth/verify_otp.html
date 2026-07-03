@@ -2,82 +2,90 @@
 <html lang="hi" data-theme="light">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Verify OTP | Jail Rehai</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<title>Verify OTP | Jail Rehai — उत्तर प्रदेश पुलिस</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
-:root{--bg:#f0f2f5;--card:#fff;--text:#1a1a2e;--muted:#6c757d;--border:#dee2e6;--primary:#1a73e8;--primary-dark:#1557b0;--input-bg:#fff;--shadow:0 4px 24px rgba(0,0,0,.08);}
-[data-theme="dark"]{--bg:#0d1117;--card:#161b27;--text:#e0e6f0;--muted:#8b9dc3;--border:#2a3348;--input-bg:#1e2535;}
+:root{--bg:#eef1f6;--card:#fff;--text:#16233a;--muted:#5b6a82;--border:#dde3ec;--primary:#0d3b66;--primary-dark:#082a4a;--gold:#c99a2e;--gold-dark:#a67c1e;--input-bg:#fff;--shadow:0 10px 34px rgba(10,38,71,.14);}
+[data-theme="dark"]{--bg:#080d16;--card:#131a28;--text:#e7ecf5;--muted:#93a2ba;--border:#232e42;--input-bg:#182238;}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+body{font-family:'Noto Sans Devanagari','Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;transition:background .3s,color .3s;}
+.gov-strip{position:fixed;top:0;left:0;width:100%;height:4px;background:linear-gradient(90deg,#FF9933 0 33.33%,#ffffff 33.33% 66.66%,#138808 66.66% 100%);z-index:20}
 .wrap{width:100%;max-width:420px;}
-.back-btn{display:inline-flex;align-items:center;gap:6px;color:var(--primary);text-decoration:none;font-size:.83rem;margin-bottom:20px;}
-.card{background:var(--card);border-radius:16px;padding:32px;box-shadow:var(--shadow);border:1px solid var(--border);}
-.icon-circle{width:56px;height:56px;background:rgba(26,115,232,.1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:var(--primary);margin-bottom:16px;}
-h2{font-size:1.1rem;margin-bottom:4px;}
-.sub{font-size:.8rem;color:var(--muted);margin-bottom:24px;}
+.back-btn{display:inline-flex;align-items:center;gap:6px;color:var(--primary);text-decoration:none;font-size:.83rem;margin-bottom:20px;font-weight:600;}
+.back-btn:hover{text-decoration:underline}
+.card{background:var(--card);border-radius:18px;padding:32px;box-shadow:var(--shadow);border:1px solid var(--border);position:relative;overflow:hidden;}
+.card:before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--gold));}
+.icon-circle{width:56px;height:56px;background:rgba(13,59,102,.1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:var(--primary);margin-bottom:16px;}
+h2{font-size:1.1rem;margin-bottom:4px;font-weight:800;}
+.sub{font-size:.8rem;color:var(--muted);margin-bottom:24px;line-height:1.5;}
 .form-group{margin-bottom:16px;}
-.form-label{display:block;font-size:.8rem;font-weight:600;margin-bottom:6px;}
+.form-label{display:block;font-size:.8rem;font-weight:700;margin-bottom:6px;}
 .input-wrap{position:relative;}
 .input-wrap i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem;}
-.input-wrap input{width:100%;padding:10px 12px 10px 36px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--text);font-size:.87rem;}
-.input-wrap input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(26,115,232,.1);}
+.input-wrap input{width:100%;padding:10px 12px 10px 36px;border:1.5px solid var(--border);border-radius:9px;background:var(--input-bg);color:var(--text);font-size:.87rem;font-family:inherit;}
+.input-wrap input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,59,102,.12);}
 .toggle-pass{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;}
-.btn{width:100%;padding:11px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;}
-.btn:hover{background:var(--primary-dark);}
-.alert{padding:10px 14px;border-radius:8px;font-size:.82rem;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
-.alert-danger{background:rgba(220,53,69,.1);color:#721c24;border:1px solid rgba(220,53,69,.2);}
-.alert-success{background:rgba(40,167,69,.1);color:#155724;border:1px solid rgba(40,167,69,.2);}
-.alert-warning{background:rgba(255,193,7,.1);color:#856404;border:1px solid rgba(255,193,7,.2);}
-[data-theme="dark"] .alert-danger{color:#f1aeb5;}[data-theme="dark"] .alert-success{color:#75e09a;}
+.btn{width:100%;padding:12px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border:none;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;box-shadow:0 10px 22px rgba(13,59,102,.28);transition:.2s;font-family:inherit;}
+.btn:hover{transform:translateY(-1px);filter:brightness(1.06);}
+.alert{padding:10px 14px;border-radius:9px;font-size:.82rem;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.alert-danger{background:rgba(198,40,40,.1);color:#9f2020;border:1px solid rgba(198,40,40,.2);}
+.alert-success{background:rgba(30,142,79,.1);color:#1a6b3d;border:1px solid rgba(30,142,79,.2);}
+[data-theme="dark"] .alert-danger{color:#f0a3a3;}[data-theme="dark"] .alert-success{color:#7fd8a4;}
 .otp-timer{font-size:.78rem;color:var(--muted);margin-top:8px;text-align:center;}
-.theme-toggle{position:fixed;top:16px;right:16px;background:var(--card);border:1px solid var(--border);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:.9rem;}
+.theme-toggle{position:fixed;top:16px;right:16px;background:var(--card);border:1px solid var(--border);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:.9rem;box-shadow:var(--shadow);}
+.footnote{text-align:center;margin-top:16px;font-size:.72rem;color:var(--muted);}
 </style>
 </head>
 <body>
+<div class="gov-strip"></div>
 <button class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon" id="themeIcon"></i></button>
 <div class="wrap">
   <a href="{{ url_for('auth.forgot_password') }}" class="back-btn"><i class="fas fa-arrow-left"></i> वापस</a>
   <div class="card">
     <div class="icon-circle"><i class="fas fa-shield-check"></i></div>
-    <h2>Verify OTP & Reset पासवर्ड</h2>
-    <div class="sub">Enter the OTP sent to <strong>{{ email }}</strong> and set a new password.</div>
+    <h2>OTP सत्यापित करें और पासवर्ड रीसेट करें</h2>
+    <div class="sub"><strong>{{ email }}</strong> पर भेजा गया OTP दर्ज करें और नया पासवर्ड सेट करें।</div>
     {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}{% for cat, msg in messages %}
     <div class="alert alert-{{ cat }}"><i class="fas fa-info-circle"></i> {{ msg }}</div>
     {% endfor %}{% endif %}{% endwith %}
     <form method="POST">
       <input type="hidden" name="email" value="{{ email }}">
       <div class="form-group">
-        <label class="form-label">OTP Code</label>
+        <label class="form-label">OTP कोड</label>
         <div class="input-wrap">
           <i class="fas fa-hashtag"></i>
-          <input type="text" name="otp" placeholder="Enter 6-digit OTP" maxlength="6" required style="letter-spacing:4px;font-size:1rem;font-weight:700;text-align:center;">
+          <input type="text" name="otp" placeholder="6-अंकों का OTP दर्ज करें" maxlength="6" required style="letter-spacing:4px;font-size:1rem;font-weight:700;text-align:center;">
         </div>
-        <div class="otp-timer">OTP valid for <span id="timer">10:00</span></div>
+        <div class="otp-timer">OTP मान्य है <span id="timer">10:00</span></div>
       </div>
       <div class="form-group">
-        <label class="form-label">New पासवर्ड</label>
+        <label class="form-label">नया पासवर्ड</label>
         <div class="input-wrap">
           <i class="fas fa-lock"></i>
-          <input type="password" name="new_password" id="np" placeholder="New password (min 6 chars)" required minlength="6">
+          <input type="password" name="new_password" id="np" placeholder="नया पासवर्ड (न्यूनतम 6 अक्षर)" required minlength="6">
           <button type="button" class="toggle-pass" onclick="tp('np','e1')"><i class="fas fa-eye" id="e1"></i></button>
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Confirm पासवर्ड</label>
+        <label class="form-label">पासवर्ड की पुष्टि करें</label>
         <div class="input-wrap">
           <i class="fas fa-lock"></i>
-          <input type="password" name="confirm_password" id="cp" placeholder="Confirm new password" required minlength="6">
+          <input type="password" name="confirm_password" id="cp" placeholder="नया पासवर्ड पुनः दर्ज करें" required minlength="6">
           <button type="button" class="toggle-pass" onclick="tp('cp','e2')"><i class="fas fa-eye" id="e2"></i></button>
         </div>
       </div>
-      <button type="submit" class="btn"><i class="fas fa-key"></i> Reset पासवर्ड</button>
+      <button type="submit" class="btn"><i class="fas fa-key"></i> पासवर्ड रीसेट करें</button>
     </form>
   </div>
+  <div class="footnote"><i class="fas fa-shield-halved" style="color:var(--gold-dark)"></i> उत्तर प्रदेश पुलिस — सुरक्षित सरकारी पोर्टल</div>
 </div>
 <script>
-const t=localStorage.getItem('theme')||'light';document.documentElement.setAttribute('data-theme',t);document.getElementById('themeIcon').classनाम=t==='dark'?'fas fa-sun':'fas fa-moon';
-function toggleTheme(){const c=document.documentElement.getAttribute('data-theme');const n=c==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('theme',n);document.getElementById('themeIcon').classनाम=n==='dark'?'fas fa-sun':'fas fa-moon';}
-function tp(id,ei){const el=document.getElementById(id);const ic=document.getElementById(ei);if(el.type==='password'){el.type='text';ic.classनाम='fas fa-eye-slash';}else{el.type='password';ic.classनाम='fas fa-eye';}}
+const t=localStorage.getItem('theme')||'light';document.documentElement.setAttribute('data-theme',t);document.getElementById('themeIcon').className=t==='dark'?'fas fa-sun':'fas fa-moon';
+function toggleTheme(){const c=document.documentElement.getAttribute('data-theme');const n=c==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('theme',n);document.getElementById('themeIcon').className=n==='dark'?'fas fa-sun':'fas fa-moon';}
+function tp(id,ei){const el=document.getElementById(id);const ic=document.getElementById(ei);if(el.type==='password'){el.type='text';ic.className='fas fa-eye-slash';}else{el.type='password';ic.className='fas fa-eye';}}
 // OTP countdown
 let s=600;const ti=document.getElementById('timer');
 const iv=setInterval(()=>{s--;const m=Math.floor(s/60);const sec=s%60;ti.textContent=m+':'+(sec<10?'0':'')+sec;if(s<=0){clearInterval(iv);ti.textContent='Expired';ti.style.color='red';}},1000);

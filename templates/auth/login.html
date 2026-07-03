@@ -3,70 +3,95 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login | Jail Rehai - अपराधी प्रबंधन System</title>
+<title>Login | Jail Rehai — उत्तर प्रदेश पुलिस अपराध प्रबंधन प्रणाली</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
 :root{
---primary:#0b5ed7;--primary2:#2563eb;--success:#16a34a;--danger:#dc2626;
---bg:#eef4ff;--card:rgba(255,255,255,.88);--text:#1d2939;--muted:#667085;
---border:rgba(255,255,255,.35);--input:#fff;--shadow:0 20px 60px rgba(0,0,0,.15);
+--primary:#0d3b66;--primary2:#145088;--gold:#c99a2e;--gold-dark:#a67c1e;
+--success:#1e8e4f;--danger:#c62828;
+--bg:#eef1f6;--card:rgba(255,255,255,.92);--text:#16233a;--muted:#5b6a82;
+--border:rgba(13,59,102,.14);--input:#fff;--shadow:0 24px 60px rgba(10,38,71,.18);
+--primary-rgb:13,59,102;
 }
 [data-theme="dark"]{
---bg:#08111f;--card:rgba(18,25,40,.92);--text:#eef4ff;--muted:#a8b3c7;
---border:rgba(255,255,255,.08);--input:#1d2638;--shadow:0 20px 60px rgba(0,0,0,.45);
+--bg:#080d16;--card:rgba(19,26,40,.94);--text:#e7ecf5;--muted:#93a2ba;
+--border:rgba(255,255,255,.08);--input:#182238;--shadow:0 24px 60px rgba(0,0,0,.55);
 }
 *{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
 body{
-font-family:'Noto Sans Devanagari',Poppins,sans-serif;color:var(--text);
-background:linear-gradient(-45deg,#dcecff,#eef4ff,#d9e8ff,#f8fbff);
-background-size:400% 400%;
-animation:bg 16s ease infinite;
-min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;overflow:hidden;
+font-family:'Noto Sans Devanagari','Inter',sans-serif;color:var(--text);
+background:
+  radial-gradient(circle at 15% 10%, rgba(13,59,102,.10), transparent 45%),
+  radial-gradient(circle at 85% 90%, rgba(201,154,46,.10), transparent 45%),
+  var(--bg);
+min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 20px;overflow:hidden;
 }
-@keyframes bg{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
-body:before,body:after{content:"";position:fixed;border-radius:50%;filter:blur(80px);z-index:-1}
-body:before{width:360px;height:360px;background:#0b5ed733;left:-100px;top:-80px}
-body:after{width:320px;height:320px;background:#06b6d433;right:-80px;bottom:-100px}
-.theme{position:fixed;top:18px;right:18px;width:44px;height:44px;border:none;border-radius:50%;background:var(--card);backdrop-filter:blur(18px);box-shadow:var(--shadow);cursor:pointer;color:var(--text)}
+.gov-strip{position:fixed;top:0;left:0;width:100%;height:4px;background:linear-gradient(90deg,#FF9933 0 33.33%,#ffffff 33.33% 66.66%,#138808 66.66% 100%);z-index:20}
+body:before,body:after{content:"";position:fixed;border-radius:50%;filter:blur(90px);z-index:-1}
+body:before{width:380px;height:380px;background:rgba(13,59,102,.16);left:-120px;top:-90px}
+body:after{width:340px;height:340px;background:rgba(201,154,46,.14);right:-90px;bottom:-110px}
+
+.theme{position:fixed;top:22px;right:20px;width:42px;height:42px;border:none;border-radius:50%;background:var(--card);backdrop-filter:blur(18px);box-shadow:var(--shadow);cursor:pointer;color:var(--text);z-index:10}
+
 .wrap{width:100%;max-width:430px}
-.header{text-align:center;margin-bottom:20px}
-.logo{width:86px;height:86px;border-radius:50%;background:linear-gradient(135deg,#0b5ed7,#3b82f6);margin:auto;display:flex;align-items:center;justify-content:center;color:#fff;font-size:36px;box-shadow:0 15px 35px rgba(37,99,235,.35)}
-h1{font-size:28px;margin:14px 0 5px}
-.sub{font-size:13px;color:var(--muted);letter-spacing:1px}
-.flag{height:4px;background:linear-gradient(90deg,#ff9933,#fff,#138808);border-radius:4px;margin:14px auto;width:220px}
-.card{background:var(--card);backdrop-filter:blur(20px);padding:34px;border-radius:24px;border:1px solid var(--border);box-shadow:var(--shadow)}
-.title{font-size:24px;font-weight:700}
-.desc{font-size:13px;color:var(--muted);margin:6px 0 24px}
-.group{margin-bottom:20px;position:relative}
-.group input{width:100%;height:56px;border-radius:14px;border:1px solid #d8dee9;background:var(--input);padding:20px 46px 8px;font-size:15px;color:var(--text);outline:none}
-.group label{position:absolute;left:46px;top:18px;color:var(--muted);transition:.25s;background:transparent}
-.group input:focus+label,.group input:not(:placeholder-shown)+label{top:6px;font-size:11px;color:var(--primary)}
-.group i.left{position:absolute;left:16px;top:20px;color:var(--muted)}
-.eye{position:absolute;right:16px;top:20px;border:none;background:none;cursor:pointer;color:var(--muted)}
-.opts{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin:8px 0 18px}
-.opts a{text-decoration:none;color:var(--primary)}
-.btn{width:100%;height:54px;border:none;border-radius:14px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-weight:600;font-size:16px;cursor:pointer;transition:.25s;box-shadow:0 14px 28px rgba(37,99,235,.35)}
-.btn:hover{transform:translateY(-2px)}
-.caps{display:none;color:#b45309;font-size:12px;margin-top:6px}
-.footer{text-align:center;margin-top:18px;font-size:12px;color:var(--muted)}
-.alert{padding:12px;border-radius:12px;margin-bottom:16px}
-.alert-success{background:#dcfce7;color:#166534}
-.alert-danger{background:#fee2e2;color:#991b1b}
+.header{text-align:center;margin-bottom:18px}
+.gov-line{font-size:.68rem;font-weight:700;letter-spacing:1.4px;color:var(--gold-dark);text-transform:uppercase;margin-bottom:10px}
+.gov-line span{color:var(--muted);font-weight:600}
+.logo{width:80px;height:80px;border-radius:50%;background:linear-gradient(150deg,var(--primary),var(--primary2));margin:auto;display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;box-shadow:0 16px 36px rgba(13,59,102,.35);border:3px solid rgba(201,154,46,.55)}
+h1{font-size:26px;margin:14px 0 3px;font-weight:800;letter-spacing:.2px}
+.sub{font-size:12.5px;color:var(--muted);letter-spacing:.6px}
+.flag{height:3px;background:linear-gradient(90deg,#FF9933,#fff,#138808);border-radius:4px;margin:14px auto 0;width:180px;box-shadow:0 0 0 1px var(--border)}
+
+.card{background:var(--card);backdrop-filter:blur(20px);padding:32px 30px;border-radius:22px;border:1px solid var(--border);box-shadow:var(--shadow);position:relative;overflow:hidden}
+.card:before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--gold))}
+.title{font-size:22px;font-weight:800}
+.desc{font-size:12.5px;color:var(--muted);margin:5px 0 22px}
+
+.group{margin-bottom:18px;position:relative}
+.group input{width:100%;height:54px;border-radius:13px;border:1.5px solid var(--border);background:var(--input);padding:20px 44px 8px;font-size:14.5px;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;font-family:inherit}
+.group input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,59,102,.12)}
+.group label{position:absolute;left:44px;top:17px;color:var(--muted);transition:.2s;background:transparent;font-size:13.5px;pointer-events:none}
+.group input:focus+label,.group input:not(:placeholder-shown)+label{top:6px;font-size:10.5px;color:var(--primary);font-weight:700;letter-spacing:.3px}
+.group i.left{position:absolute;left:15px;top:19px;color:var(--muted);font-size:.92rem}
+.eye{position:absolute;right:14px;top:18px;border:none;background:none;cursor:pointer;color:var(--muted);padding:4px}
+
+.opts{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;margin:6px 0 20px;color:var(--muted)}
+.opts label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.opts a{text-decoration:none;color:var(--primary);font-weight:600}
+.opts a:hover{text-decoration:underline}
+
+.btn{width:100%;height:52px;border:none;border-radius:13px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-weight:700;font-size:15px;cursor:pointer;transition:.22s;box-shadow:0 14px 30px rgba(13,59,102,.32);font-family:inherit;letter-spacing:.2px}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.07)}
+.btn:active{transform:translateY(0)}
+
+.caps{display:none;color:#a6720f;font-size:11.5px;margin-top:6px;font-weight:600}
+.footer{text-align:center;margin-top:20px;font-size:11.5px;color:var(--muted);line-height:1.6}
+.footer strong{color:var(--text)}
+
+.alert{padding:11px 14px;border-radius:11px;margin-bottom:16px;font-size:12.5px;display:flex;align-items:center;gap:8px}
+.alert-success{background:rgba(30,142,79,.1);color:#1a6b3d}
+.alert-danger{background:rgba(198,40,40,.1);color:#9f2020}
+[data-theme="dark"] .alert-success{color:#7fd8a4}
+[data-theme="dark"] .alert-danger{color:#f0a3a3}
+
 @keyframes shake{20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}100%{transform:none}}
 .shake{animation:shake .45s}
-@media(max-width:520px){.card{padding:24px}h1{font-size:24px}.logo{width:72px;height:72px;font-size:30px}}
+@media(max-width:520px){.card{padding:26px 22px}h1{font-size:22px}.logo{width:70px;height:70px;font-size:28px}}
 </style>
 </head>
 <body>
+<div class="gov-strip"></div>
 <button class="theme" onclick="toggleTheme()"><i id="themeIcon" class="fas fa-moon"></i></button>
 <div class="wrap">
 <div class="header">
+<div class="gov-line">उत्तर प्रदेश पुलिस <span>· गृह विभाग, उत्तर प्रदेश शासन</span></div>
 <div class="logo"><i class="fas fa-shield-halved"></i></div>
-<h1>Jail Rehai</h1>
-<div class="sub">अपराध प्रबंधन प्रणाली</div>
+<h1>जेल रिहाई</h1>
+<div class="sub">अभियुक्त एवं अपराध प्रबंधन प्रणाली</div>
 <div class="flag"></div>
 </div>
 <div class="card" id="card">
@@ -76,7 +101,7 @@ h1{font-size:28px;margin:14px 0 5px}
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
 {% for cat,msg in messages %}
-<div class="alert alert-{{cat}}">{{msg}}</div>
+<div class="alert alert-{{cat}}"><i class="fas fa-circle-info"></i> {{msg}}</div>
 {% endfor %}
 {% endif %}
 {% endwith %}
@@ -93,7 +118,7 @@ h1{font-size:28px;margin:14px 0 5px}
 <input type="password" id="password" name="password" placeholder=" " required autocomplete="current-password">
 <label>पासवर्ड</label>
 <button type="button" class="eye" onclick="togglePass()"><i id="eye" class="fas fa-eye"></i></button>
-<div class="caps" id="caps">⚠ Caps Lock is ON</div>
+<div class="caps" id="caps"><i class="fas fa-triangle-exclamation"></i> Caps Lock ऑन है</div>
 </div>
 
 <div class="opts">
@@ -106,24 +131,25 @@ h1{font-size:28px;margin:14px 0 5px}
 </div>
 
 <div class="footer">
-🔒 सुरक्षित सरकारी पोर्टल • अनधिकृत पहुँच वर्जित है।
+<i class="fas fa-lock" style="color:var(--gold-dark)"></i> सुरक्षित सरकारी पोर्टल — अनधिकृत पहुँच वर्जित है।<br>
+<strong>Jail Rehai</strong> © उत्तर प्रदेश पुलिस
 </div>
 </div>
 
 <script>
 const t=localStorage.getItem("theme")||"light";
 document.documentElement.dataset.theme=t;
-themeIcon.classनाम=t==="dark"?"fas fa-sun":"fas fa-moon";
+themeIcon.className=t==="dark"?"fas fa-sun":"fas fa-moon";
 function toggleTheme(){
 let n=document.documentElement.dataset.theme==="light"?"dark":"light";
 document.documentElement.dataset.theme=n;
 localStorage.setItem("theme",n);
-themeIcon.classनाम=n==="dark"?"fas fa-sun":"fas fa-moon";
+themeIcon.className=n==="dark"?"fas fa-sun":"fas fa-moon";
 }
 function togglePass(){
 let p=password,e=document.getElementById("eye");
-if(p.type==="password"){p.type="text";e.classनाम="fas fa-eye-slash";}
-else{p.type="password";e.classनाम="fas fa-eye";}
+if(p.type==="password"){p.type="text";e.className="fas fa-eye-slash";}
+else{p.type="password";e.className="fas fa-eye";}
 }
 password.addEventListener("keyup",e=>{
 caps.style.display=e.getModifierState("CapsLock")?"block":"none";
