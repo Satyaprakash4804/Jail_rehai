@@ -13,8 +13,29 @@ Tables:
   • accused_fir          — M:N junction: किस FIR में अभियुक्त की क्या भूमिका
   • accused_photos       — अभियुक्त के फ़ोटो इतिहास
   • accused_bail_history — जमानत स्वीकृति/निरस्तीकरण का स्थायी इतिहास
+  • accused_bail_fir     — M:N: एक जमानत रिकॉर्ड में एक से अधिक FIR हो सकती हैं
+  • bail_excel_batch     — जमानत Excel बल्क-अपलोड बैच (हेडर / मेटा)
+  • bail_excel_row       — बैच की हर पंक्ति + fuzzy-match परिणाम (audit trail)
   • notifications        — in-app notifications (bail approvals etc.)
   • fcm_tokens           — push-notification device tokens
+
+ENCODING NOTE
+-------------
+This file, and every string literal in it (including SQL COMMENT text),
+MUST be saved on disk as UTF-8 (no BOM). If it ever gets re-saved by an
+editor using a Windows codepage (e.g. cp1252), the Devanagari text gets
+silently corrupted at the byte level — and because a stray corrupted byte
+can land on 0x27 (an ASCII apostrophe), it can prematurely terminate a
+SQL string literal and produce a confusing "syntax error near ..." from
+MySQL that looks unrelated to encoding. If you ever see a syntax error
+whose "near" text shows garbled/mixed characters (e.g. 'मूà¤'), that is
+the signature of this problem — re-save this file as UTF-8.
+
+We also defend against the *connection*-side half of this problem below:
+DB_CONFIG's charset/collation are set explicitly and every new connection
+runs `SET NAMES utf8mb4` right after connecting, so even a driver that
+would otherwise default to a narrower charset can't mangle the SQL we
+send over the wire.
 """
 
 import mysql.connector
@@ -24,10 +45,26 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Merge in explicit UTF-8 connection settings without forcing every caller
+# to repeat them in config.py — config.py's values (if present) still win.
+_DB_CONFIG = {
+    "charset": "utf8mb4",
+    "collation": "utf8mb4_unicode_ci",
+    "use_unicode": True,
+    **DB_CONFIG,
+}
+
 
 def get_connection():
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
+        conn = mysql.connector.connect(**_DB_CONFIG)
+        # Belt-and-braces: force the session's character set explicitly,
+        # in case the server/driver negotiated something else at connect
+        # time. Cheap (single round-trip) and eliminates an entire class
+        # of "mysteriously garbled Hindi text" / stray-quote SQL errors.
+        cursor = conn.cursor()
+        cursor.execute("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci")
+        cursor.close()
         return conn
     except Error as e:
         logger.error(f"DB connection error: {e}")
@@ -35,11 +72,12 @@ def get_connection():
 
 
 def init_db():
-    cfg = dict(DB_CONFIG)
+    cfg = dict(_DB_CONFIG)
     dbname = cfg.pop("database")
     try:
         conn = mysql.connector.connect(**cfg)
         cursor = conn.cursor()
+        cursor.execute("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci")
         cursor.execute(
             f"CREATE DATABASE IF NOT EXISTS `{dbname}` "
             f"CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
@@ -95,8 +133,7 @@ def init_db():
     """)
 
     # ══════════════════════════════════════════════════════════════════════════
-    # NEW: FIR Cases Table
-    # एक पंक्ति = एक FIR मामला
+    # FIR Cases Table — एक पंक्ति = एक FIR मामला
     # ══════════════════════════════════════════════════════════════════════════
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS fir_cases (
@@ -121,7 +158,7 @@ def init_db():
     """)
 
     # ══════════════════════════════════════════════════════════════════════════
-    # NEW: Accused (अभियुक्त) — deduplicated master record
+    # Accused (अभियुक्त) — deduplicated master record
     # एक अभियुक्त एक बार — भले ही कितनी FIR में हो
     # Dedup key: name_normalized + fathers_name_normalized
     # ══════════════════════════════════════════════════════════════════════════
@@ -149,15 +186,13 @@ def init_db():
     """)
 
     # ══════════════════════════════════════════════════════════════════════════
-    # NEW: Accused ↔ FIR junction table
-    # एक अभियुक्त की एक FIR में भूमिका
+    # Accused ↔ FIR junction table — एक अभियुक्त की एक FIR में भूमिका
     # ══════════════════════════════════════════════════════════════════════════
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS accused_fir (
         id               INT AUTO_INCREMENT PRIMARY KEY,
         accused_id       INT NOT NULL,
         fir_id           INT NOT NULL,
-        -- अभियुक्त की इस FIR में स्थिति
         in_total_accused     TINYINT(1) DEFAULT 0 COMMENT 'कुल अभियुक्त में है',
         in_fir_accused       TINYINT(1) DEFAULT 0 COMMENT 'FIR में नामित',
         in_arrested          TINYINT(1) DEFAULT 0 COMMENT 'गिरफ्तार',
@@ -185,13 +220,10 @@ def init_db():
     """)
 
     # ══════════════════════════════════════════════════════════════════════════
-    # NEW: Accused Bail (जमानत) — ONLY valid for accused who are marked
+    # Accused Bail (जमानत) — ONLY valid for accused who are marked
     # in_arrested=1 in at least one FIR (accused_fir.in_arrested).
-    # Admin/Super Admin action is "Approve Bail" (स्वीकृत करें), not "Grant".
-    # accused.bail_* columns hold the CURRENT active bail (this is the single
-    # table pattern). accused_bail_history keeps EVERY bail record forever —
-    # so if the same accused is arrested again in a different/future FIR,
-    # the full bail + FIR history is still visible on their detail page.
+    # accused.bail_* columns hold the CURRENT active bail; accused_bail_history
+    # keeps EVERY bail record forever.
     # ══════════════════════════════════════════════════════════════════════════
     for sql in [
         "ALTER TABLE accused ADD COLUMN bail_status ENUM('none','temporary','permanent') DEFAULT 'none'",
@@ -245,6 +277,96 @@ def init_db():
     ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     """)
 
+    # ══════════════════════════════════════════════════════════════════════════
+    # Multi-FIR bail support — accused_bail_history.fir_id स्तंभ केवल
+    # "प्राथमिक/पहली" FIR के लिए backward-compatibility हेतु बना रहता है;
+    # असली सम्बन्ध accused_bail_fir में है।
+    # ══════════════════════════════════════════════════════════════════════════
+    for sql in [
+        "ALTER TABLE accused_bail_history MODIFY fir_id INT NULL",
+        "ALTER TABLE accused_bail_history ADD COLUMN photo_status ENUM('pending','complete') DEFAULT 'complete' "
+        "COMMENT 'pending = Excel बल्क अप्रूवल से बनी, फ़ोटो/दस्तावेज़ बाद में अपलोड होने बाकी'",
+        "ALTER TABLE accused_bail_history ADD COLUMN source ENUM('manual','excel_bulk') DEFAULT 'manual'",
+        "ALTER TABLE accused_bail_history ADD COLUMN court_name VARCHAR(255) COMMENT 'मा0 न्यायालय का नाम'",
+        "ALTER TABLE accused_bail_history ADD COLUMN jail_date DATE COMMENT 'जेल जाने का दिनांक'",
+        "ALTER TABLE accused_bail_history ADD COLUMN release_date DATE COMMENT 'रिहा किये जाने की तिथी'",
+        "ALTER TABLE accused_bail_history ADD COLUMN criminal_history VARCHAR(500) COMMENT 'अपराधिक इतिहास (Excel से)'",
+        "ALTER TABLE accused_bail_history ADD COLUMN excel_batch_id INT NULL",
+        "ALTER TABLE accused_bail_history ADD COLUMN excel_row_raw TEXT COMMENT 'ऑडिट हेतु मूल Excel पंक्ति (JSON)'",
+    ]:
+        try:
+            cursor.execute(sql)
+            conn.commit()
+        except Exception:
+            pass
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS accused_bail_fir (
+        id         INT AUTO_INCREMENT PRIMARY KEY,
+        bail_id    INT NOT NULL COMMENT 'accused_bail_history.id',
+        fir_id     INT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_bail_fir (bail_id, fir_id),
+        FOREIGN KEY (bail_id) REFERENCES accused_bail_history(id) ON DELETE CASCADE,
+        FOREIGN KEY (fir_id)  REFERENCES fir_cases(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    """)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # Bail Excel bulk-approval batches — माननीय न्यायालय द्वारा जमानत/रिहाई की
+    # सूची वाली Excel अपलोड करने पर हर पंक्ति का fuzzy-match परिणाम
+    # (matched / ambiguous / not_found / already_bailed / fir_not_found)
+    # रिकॉर्ड होता है — पारदर्शिता व ऑडिट हेतु, और admin की समीक्षा (review) +
+    # पुष्टि (confirm) के दो-चरण प्रवाह हेतु।
+    # ══════════════════════════════════════════════════════════════════════════
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS bail_excel_batch (
+        id             INT AUTO_INCREMENT PRIMARY KEY,
+        district       VARCHAR(150) NOT NULL,
+        filename       VARCHAR(255),
+        uploaded_by    INT,
+        total_rows     INT DEFAULT 0,
+        matched_rows   INT DEFAULT 0,
+        error_rows     INT DEFAULT 0,
+        status         ENUM('staged','confirmed','discarded') DEFAULT 'staged',
+        confirmed_by   INT,
+        confirmed_at   DATETIME,
+        created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL,
+        FOREIGN KEY (confirmed_by) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS bail_excel_row (
+        id                INT AUTO_INCREMENT PRIMARY KEY,
+        batch_id          INT NOT NULL,
+        row_no       INT NOT NULL,
+        raw_name_field    TEXT COMMENT 'मूल नाम-पता कॉलम',
+        parsed_name       VARCHAR(200),
+        parsed_fathers_name VARCHAR(200),
+        parsed_address    TEXT,
+        thana_col         VARCHAR(150),
+        fir_number_col    VARCHAR(50),
+        court_name        VARCHAR(255),
+        jail_date         DATE,
+        release_date      DATE,
+        bail_date         DATE,
+        criminal_history  VARCHAR(500),
+        match_status      ENUM('matched','ambiguous','not_found','already_bailed','fir_not_found') NOT NULL,
+        matched_accused_id INT NULL,
+        match_confidence  DECIMAL(5,4),
+        candidate_ids     VARCHAR(500) COMMENT 'ambiguous होने पर संभावित accused_id सूची',
+        resolved_fir_ids  VARCHAR(500) COMMENT 'कॉमा-सूची: जिन FIR के आधार पर जमानत बनेगी',
+        include_in_confirm TINYINT(1) DEFAULT 1 COMMENT 'admin इसे uncheck कर बाहर रख सकता है',
+        created_bail_id   INT NULL COMMENT 'confirm के बाद बना accused_bail_history.id',
+        FOREIGN KEY (batch_id) REFERENCES bail_excel_batch(id) ON DELETE CASCADE,
+        FOREIGN KEY (matched_accused_id) REFERENCES accused(id) ON DELETE SET NULL,
+        KEY idx_batch (batch_id),
+        KEY idx_status (match_status)
+    ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    """)
+
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS notifications (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -280,6 +402,9 @@ def init_db():
         "ALTER TABLE accused_bail_history ADD COLUMN bail_photo_lat DECIMAL(10,7)",
         "ALTER TABLE accused_bail_history ADD COLUMN bail_photo_lng DECIMAL(10,7)",
         "ALTER TABLE accused_bail_history ADD COLUMN bail_photo_captured_at DATETIME",
+        "ALTER TABLE accused_bail_history ADD INDEX idx_photo_status (photo_status)",
+        "ALTER TABLE accused_bail_history ADD INDEX idx_excel_batch (excel_batch_id)",
+        "ALTER TABLE accused ADD INDEX idx_bail_status (bail_status)",
     ]:
         try:
             cursor.execute(sql)
@@ -298,9 +423,8 @@ def init_db():
 def _drop_legacy_criminal_tables():
     """
     One-time cleanup migration: drop legacy criminal-management tables
-    from any older installation of this system. This system now manages
-    only Accused (अभियुक्त) records — there is no criminal module.
-    Safe to run repeatedly; each DROP is a no-op if the table is absent.
+    from any older installation of this system. Safe to run repeatedly;
+    each DROP is a no-op if the table is absent.
     """
     conn = get_connection()
     cursor = conn.cursor()
@@ -342,5 +466,3 @@ def _create_master_admin():
         logger.info("Default master admin created.")
     cursor.close()
     conn.close()
-
-init_db()
