@@ -466,3 +466,5 @@ def _create_master_admin():
         logger.info("Default master admin created.")
     cursor.close()
     conn.close()
+
+init_db()
