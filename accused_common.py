@@ -13,6 +13,7 @@ Handles:
 
 import io
 import re
+import base64
 import logging
 from difflib import SequenceMatcher
 from datetime import datetime
@@ -701,44 +702,73 @@ def approve_accused_bail(accused_id: int, role='admin'):
                 cursor.close(); conn.close()
                 return render_template(f'{bp}/approve_accused_bail.html', accused=accused, arrest_firs=arrest_firs)
 
-        # ── Live geo-tagged कैमरा फ़ोटो — अनिवार्य ──────────────────────────
-        # ब्राउज़र कैमरे से लिया गया, तारीख़/समय/lat-long उसी छवि पर अंकित,
-        # किसी पुरानी/गैलरी फ़ोटो को अपलोड करने की अनुमति नहीं है।
-        photo_data = request.form.get('bail_photo_data', '').strip()
-        photo_lat  = request.form.get('bail_photo_lat', '').strip()
-        photo_lng  = request.form.get('bail_photo_lng', '').strip()
-        photo_time = request.form.get('bail_photo_captured_at', '').strip()
+        # ── अभियुक्त की फ़ोटो — या तो कैमरे से live geo-tagged कैप्चर, या
+        # सीधे फ़ाइल अपलोड। दोनों में से कोई एक अनिवार्य है।
+        # bail_photo_source बताता है कि फ़्रंटएंड ने कौन सा तरीका भेजा:
+        #   'camera' → bail_photo_data (data:image base64, geo/time overlay
+        #              पहले से छवि पर बेक किया हुआ)
+        #   'upload' → bail_photo_upload (साधारण फ़ाइल, कोई GPS/समय overlay नहीं)
+        photo_data     = request.form.get('bail_photo_data', '').strip()
+        photo_source   = request.form.get('bail_photo_source', 'camera').strip()
+        photo_lat_raw  = request.form.get('bail_photo_lat', '').strip()
+        photo_lng_raw  = request.form.get('bail_photo_lng', '').strip()
+        photo_time_raw = request.form.get('bail_photo_captured_at', '').strip()
+        uploaded_photo_file = request.files.get('bail_photo_upload')
 
-        if not photo_data.startswith('data:image'):
-            flash('जमानत स्वीकृत करने से पहले कैमरे से अभियुक्त की geo-tagged लाइव फ़ोटो लेना अनिवार्य है।', 'danger')
+        bail_photo_url = bail_photo_public_id = None
+        is_uploaded_photo = False
+
+        if photo_data.startswith('data:image'):
+            # ── कैमरा कैप्चर पथ ──────────────────────────────────────────
+            bail_photo_url, bail_photo_public_id = upload_image(photo_data, folder='accused_bail_photos')
+        elif uploaded_photo_file and uploaded_photo_file.filename:
+            # ── मैनुअल फ़ाइल अपलोड पथ ────────────────────────────────────
+            # कोई live GPS/समय overlay संभव नहीं — फ़ाइल जैसी है वैसी ही अपलोड होगी।
+            is_uploaded_photo = True
+            try:
+                file_bytes = uploaded_photo_file.read()
+                mime_type  = uploaded_photo_file.mimetype or 'image/jpeg'
+                b64_data   = f"data:{mime_type};base64,{base64.b64encode(file_bytes).decode('utf-8')}"
+                bail_photo_url, bail_photo_public_id = upload_image(b64_data, folder='accused_bail_photos')
+            except Exception as e:
+                logger.error(f"Bail photo upload (file) error: {e}")
+                bail_photo_url = None
+        else:
+            flash('जमानत स्वीकृत करने से पहले अभियुक्त की फ़ोटो लेना या अपलोड करना अनिवार्य है।', 'danger')
             cursor.close(); conn.close()
             return render_template(f'{bp}/approve_accused_bail.html', accused=accused, arrest_firs=arrest_firs)
 
-        bail_photo_url, bail_photo_public_id = upload_image(photo_data, folder='accused_bail_photos')
         if not bail_photo_url:
             flash('फ़ोटो अपलोड असफल रहा। कृपया पुनः प्रयास करें।', 'danger')
             cursor.close(); conn.close()
             return render_template(f'{bp}/approve_accused_bail.html', accused=accused, arrest_firs=arrest_firs)
 
-        try:
-            photo_lat_val = float(photo_lat) if photo_lat else None
-        except ValueError:
+        # अपलोड की गई फ़ोटो के लिए GPS/समय उपलब्ध नहीं — केवल कैमरा-कैप्चर के
+        # लिए ब्राउज़र से मिले lat/lng/समय का उपयोग करें।
+        if is_uploaded_photo:
             photo_lat_val = None
-        try:
-            photo_lng_val = float(photo_lng) if photo_lng else None
-        except ValueError:
             photo_lng_val = None
-        try:
-            photo_time_val = datetime.strptime(photo_time, '%Y-%m-%dT%H:%M:%S') if photo_time else datetime.now()
-        except ValueError:
             photo_time_val = datetime.now()
+        else:
+            try:
+                photo_lat_val = float(photo_lat_raw) if photo_lat_raw else None
+            except ValueError:
+                photo_lat_val = None
+            try:
+                photo_lng_val = float(photo_lng_raw) if photo_lng_raw else None
+            except ValueError:
+                photo_lng_val = None
+            try:
+                photo_time_val = datetime.strptime(photo_time_raw, '%Y-%m-%dT%H:%M:%S') if photo_time_raw else datetime.now()
+            except ValueError:
+                photo_time_val = datetime.now()
 
         doc = request.files.get('bail_document')
         doc_url, doc_pub_id, doc_res_type = None, None, 'raw'
         if doc and doc.filename:
             doc_url, doc_pub_id, doc_res_type = upload_document(doc, folder='accused_bail_docs')
 
-        # ── प्रोफ़ाइल फ़ोटो न हो तो जमानत के समय ली गई geo-tagged फ़ोटो को ही
+        # ── प्रोफ़ाइल फ़ोटो न हो तो जमानत के समय ली/अपलोड की गई फ़ोटो को ही
         # प्रोफ़ाइल फ़ोटो बना दें (कोई नया अपलोड नहीं — वही Cloudinary URL पुनः
         # उपयोग होता है), ताकि अभियुक्त कभी बिना फ़ोटो के न रहे।
         set_as_profile_photo = not accused.get('photo_url')
@@ -809,7 +839,7 @@ def approve_accused_bail(accused_id: int, role='admin'):
 
         success_msg = 'जमानत सफलतापूर्वक स्वीकृत। जिले के अधिकारियों को सूचित किया गया।'
         if set_as_profile_photo:
-            success_msg += ' चूंकि कोई प्रोफ़ाइल फ़ोटो नहीं थी, जमानत के समय ली गई फ़ोटो को प्रोफ़ाइल फ़ोटो के रूप में सेट कर दिया गया है।'
+            success_msg += ' चूंकि कोई प्रोफ़ाइल फ़ोटो नहीं थी, जमानत के समय की फ़ोटो को प्रोफ़ाइल फ़ोटो के रूप में सेट कर दिया गया है।'
         flash(success_msg, 'success')
         cursor.close(); conn.close()
         return redirect(url_for(f'{bp}.accused_detail', accused_id=accused_id))
