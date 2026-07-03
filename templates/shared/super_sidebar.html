@@ -28,6 +28,12 @@
 <a href="{{ url_for('super.bailed_accused') }}" class="nav-item {% if request.endpoint=='super.bailed_accused' %}active{% endif %}">
   <i class="fas fa-scale-balanced nav-icon"></i> अभियुक्त जमानत इतिहास
 </a>
+<a href="{{ url_for('super.bail_excel_upload') }}" class="nav-item {% if request.endpoint in ['super.bail_excel_upload','super.bail_excel_review'] %}active{% endif %}">
+  <i class="fas fa-file-excel nav-icon"></i> बल्क जमानत (Excel)
+</a>
+<a href="{{ url_for('super.bail_pending_photos') }}" class="nav-item {% if request.endpoint=='super.bail_pending_photos' %}active{% endif %}">
+  <i class="fas fa-camera nav-icon"></i> फ़ोटो/दस्तावेज़ लंबित
+</a>
 <a href="{{ url_for('super.notifications') }}" class="nav-item {% if request.endpoint=='super.notifications' %}active{% endif %}">
   <i class="fas fa-bell nav-icon"></i> सूचनाएं
 </a>

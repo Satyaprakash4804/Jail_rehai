@@ -1,0 +1,197 @@
+{% extends "shared/base.html" %}
+{% block title %}बैच समीक्षा — {{ batch.filename }}{% endblock %}
+{% block page_title %}बैच समीक्षा — {{ batch.filename }}{% endblock %}
+
+{% block sidebar_nav %}
+{% include "shared/admin_sidebar.html" %}
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+  <a href="{{ url_for('admin.bail_excel_upload') }}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i></a>
+  <div>
+    <h2 style="font-size:1.05rem;font-weight:700">{{ batch.filename }}</h2>
+    <span style="font-size:.75rem;color:var(--text-muted)">
+      अपलोड: {{ batch.created_at.strftime('%d-%m-%Y %H:%M') if batch.created_at else '—' }} —
+      स्थिति:
+      {% if batch.status == 'staged' %}<b style="color:var(--warning)">लंबित समीक्षा</b>
+      {% elif batch.status == 'confirmed' %}<b style="color:var(--success)">पुष्टि हो गई</b>
+      {% else %}<b style="color:var(--danger)">डिसकार्ड</b>{% endif %}
+    </span>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px">
+  <div class="card" style="padding:12px 16px"><div style="font-size:.72rem;color:var(--text-muted)">कुल पंक्तियाँ</div><div style="font-size:1.3rem;font-weight:700">{{ batch.total_rows }}</div></div>
+  <div class="card" style="padding:12px 16px"><div style="font-size:.72rem;color:var(--text-muted)">मैच मिला</div><div style="font-size:1.3rem;font-weight:700;color:var(--success)">{{ grouped.matched|length }}</div></div>
+  <div class="card" style="padding:12px 16px"><div style="font-size:.72rem;color:var(--text-muted)">संदिग्ध / एक से अधिक मैच</div><div style="font-size:1.3rem;font-weight:700;color:var(--warning)">{{ grouped.ambiguous|length }}</div></div>
+  <div class="card" style="padding:12px 16px"><div style="font-size:.72rem;color:var(--text-muted)">नहीं मिला</div><div style="font-size:1.3rem;font-weight:700;color:var(--danger)">{{ grouped.not_found|length }}</div></div>
+  <div class="card" style="padding:12px 16px"><div style="font-size:.72rem;color:var(--text-muted)">पहले से जमानत</div><div style="font-size:1.3rem;font-weight:700;color:var(--info)">{{ grouped.already_bailed|length }}</div></div>
+</div>
+
+{% if batch.status == 'staged' %}
+<form method="post" action="{{ url_for('admin.bail_excel_confirm', batch_id=batch.id) }}" id="confirmForm">
+
+  {% if grouped.matched %}
+  <div class="card" style="margin-bottom:16px;border:1px solid rgba(40,167,69,.25)">
+    <div class="card-header" style="background:rgba(40,167,69,.05);display:flex;justify-content:space-between;align-items:center">
+      <span class="card-title" style="color:var(--success)"><i class="fas fa-circle-check"></i> मैच मिला ({{ grouped.matched|length }}) — पुष्टि हेतु चुनें</span>
+      <label style="font-size:.78rem;display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="selectAllMatched" checked onchange="toggleAllMatched(this)"> सभी चुनें
+      </label>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th></th><th>पंक्ति</th><th>Excel में नाम</th><th>सिस्टम में मैच</th><th>स्कोर</th><th>FIR</th><th>अपराधिक इतिहास</th><th>न्यायालय</th><th>रिहाई तिथि</th></tr>
+        </thead>
+        <tbody>
+          {% for r in grouped.matched %}
+          <tr>
+            <td><input type="checkbox" name="row_ids" value="{{ r.id }}" class="matched-row-cb" checked></td>
+            <td style="color:var(--text-muted);font-size:.75rem">{{ r.row_no }}</td>
+            <td>
+              <div style="font-weight:600">{{ r.parsed_name }}</div>
+              <div style="font-size:.72rem;color:var(--text-muted)">S/o {{ r.parsed_fathers_name }}</div>
+            </td>
+            <td>
+              <div style="font-weight:600;color:var(--primary)">{{ r.matched_name }}</div>
+              <div style="font-size:.72rem;color:var(--text-muted)">S/o {{ r.matched_fathers_name }}</div>
+            </td>
+            <td><span class="badge" style="background:rgba(40,167,69,.12);color:var(--success)">{{ "%.0f"|format((r.match_confidence or 0)*100) }}%</span></td>
+            <td style="font-size:.78rem">
+              {% for f in r.resolved_firs %}{{ f.fir_number }}/{{ f.thana }}{% if not loop.last %}, {% endif %}{% endfor %}
+            </td>
+            <td style="font-size:.76rem">{{ r.criminal_history or '—' }}</td>
+            <td style="font-size:.76rem">{{ r.court_name or '—' }}</td>
+            <td style="font-size:.76rem">{{ r.release_date or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <div style="display:flex;gap:10px;margin-bottom:20px">
+    <button type="submit" class="btn btn-success" id="confirmBtn">
+      <i class="fas fa-scale-balanced"></i> चुनी गई पंक्तियों की जमानत स्वीकृत करें
+    </button>
+    <button type="button" class="btn btn-danger btn-outline" onclick="discardBatch()">
+      <i class="fas fa-trash"></i> पूरा बैच डिसकार्ड करें
+    </button>
+  </div>
+</form>
+<form method="post" action="{{ url_for('admin.bail_excel_discard', batch_id=batch.id) }}" id="discardForm" style="display:none"></form>
+{% endif %}
+
+{% if grouped.ambiguous %}
+<div class="card" style="margin-bottom:16px;border:1px solid rgba(255,193,7,.35)">
+  <div class="card-header" style="background:rgba(255,193,7,.08)">
+    <span class="card-title" style="color:#e65100"><i class="fas fa-triangle-exclamation"></i> एक से अधिक संभावित मैच ({{ grouped.ambiguous|length }}) — मैन्युअल जाँच आवश्यक</span>
+  </div>
+  <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+    {% for r in grouped.ambiguous %}
+    <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+      <div style="font-weight:600;margin-bottom:2px">पंक्ति {{ r.row_no }}: {{ r.parsed_name }} <span style="color:var(--text-muted);font-weight:400">S/o {{ r.parsed_fathers_name }}</span></div>
+      <div style="font-size:.75rem;color:var(--text-muted);margin-bottom:8px">थाना: {{ r.thana_col or '—' }} | मु0अ0सं0: {{ r.fir_number_col or '—' }}</div>
+      {% if batch.status == 'staged' %}
+      <form method="post" action="{{ url_for('admin.bail_excel_resolve', batch_id=batch.id, row_id=r.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select name="accused_id" class="form-control form-select" style="width:auto;min-width:260px" required>
+          <option value="">-- सही अभियुक्त चुनें --</option>
+          {% for c in r.candidates %}
+          <option value="{{ c.id }}">{{ c.name }} — S/o {{ c.fathers_name }} (ID:{{ c.id }})</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-sm btn-warning"><i class="fas fa-check"></i> मैच पुष्टि करें</button>
+      </form>
+      {% else %}
+      <span class="badge badge-pending">बैच पहले ही प्रोसेस हो चुका</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if grouped.already_bailed %}
+<div class="card" style="margin-bottom:16px;border:1px solid rgba(23,162,184,.3)">
+  <div class="card-header" style="background:rgba(23,162,184,.06)">
+    <span class="card-title" style="color:var(--info)"><i class="fas fa-circle-info"></i> पहले से जमानत स्वीकृत ({{ grouped.already_bailed|length }})</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>पंक्ति</th><th>Excel में नाम</th><th>पिता का नाम</th><th>टिप्पणी</th></tr></thead>
+      <tbody>
+        {% for r in grouped.already_bailed %}
+        <tr>
+          <td style="color:var(--text-muted);font-size:.75rem">{{ r.row_no }}</td>
+          <td>{{ r.parsed_name }}</td>
+          <td>{{ r.parsed_fathers_name }}</td>
+          <td style="font-size:.78rem;color:var(--text-muted)">{{ r.status_label }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if grouped.not_found %}
+<div class="card" style="margin-bottom:16px;border:1px solid rgba(220,53,69,.3)">
+  <div class="card-header" style="background:rgba(220,53,69,.05)">
+    <span class="card-title" style="color:var(--danger)"><i class="fas fa-circle-xmark"></i> सिस्टम में नहीं मिला ({{ grouped.not_found|length }})</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>पंक्ति</th><th>Excel में मूल पंक्ति</th><th>पार्स किया नाम</th><th>पिता का नाम</th><th>थाना</th></tr></thead>
+      <tbody>
+        {% for r in grouped.not_found %}
+        <tr>
+          <td style="color:var(--text-muted);font-size:.75rem">{{ r.row_no }}</td>
+          <td style="font-size:.76rem">{{ r.raw_name_field }}</td>
+          <td>{{ r.parsed_name or '—' }}</td>
+          <td>{{ r.parsed_fathers_name or '—' }}</td>
+          <td style="font-size:.78rem">{{ r.thana_col or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-body" style="font-size:.78rem;color:var(--text-muted);border-top:1px solid var(--border)">
+    <i class="fas fa-circle-info"></i> ये अभियुक्त सिस्टम में गिरफ़्तार (in_arrested) के रूप में दर्ज नहीं मिले — पहले FIR/गिरफ़्तारी रिकॉर्ड दर्ज करें, फिर पुनः अपलोड करें।
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleAllMatched(cb) {
+  document.querySelectorAll('.matched-row-cb').forEach(el => el.checked = cb.checked);
+}
+function discardBatch() {
+  if (confirm('क्या आप वाकई इस पूरे बैच को डिसकार्ड करना चाहते हैं? कोई जमानत रिकॉर्ड नहीं बनेगा।')) {
+    document.getElementById('discardForm').submit();
+  }
+}
+const confirmForm = document.getElementById('confirmForm');
+if (confirmForm) {
+  confirmForm.addEventListener('submit', function (e) {
+    const checked = document.querySelectorAll('.matched-row-cb:checked').length;
+    if (checked === 0) {
+      e.preventDefault();
+      alert('कृपया कम से कम एक पंक्ति चुनें।');
+      return;
+    }
+    if (!confirm(checked + ' अभियुक्तों की जमानत स्वीकृत करें?')) {
+      e.preventDefault();
+      return;
+    }
+    document.getElementById('confirmBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> प्रोसेस हो रहा है…';
+    document.getElementById('confirmBtn').disabled = true;
+  });
+}
+</script>
+{% endblock %}

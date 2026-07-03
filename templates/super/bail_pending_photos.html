@@ -1,0 +1,155 @@
+{% extends "shared/base.html" %}
+{% block title %}फ़ोटो/दस्तावेज़ लंबित — जमानत{% endblock %}
+{% block page_title %}फ़ोटो/दस्तावेज़ लंबित — Excel बल्क जमानतें{% endblock %}
+
+{% block sidebar_nav %}
+{% include "shared/super_sidebar.html" %}
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+  <a href="{{ url_for('super.bailed_accused') }}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i></a>
+  <div>
+    <h2 style="font-size:1.05rem;font-weight:700">फ़ोटो/दस्तावेज़ लंबित</h2>
+    <span style="font-size:.75rem;color:var(--text-muted)">Excel बल्क अपलोड से स्वीकृत जमानतें — geo-tagged फ़ोटो या दस्तावेज़ बाकी हैं</span>
+  </div>
+</div>
+
+{% if pending %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>अभियुक्त</th><th>FIR / थाना</th><th>न्यायालय</th><th>रिहाई तिथि</th><th>स्वीकृत</th><th>कार्रवाई</th></tr>
+      </thead>
+      <tbody>
+        {% for p in pending %}
+        <tr>
+          <td>
+            {% if p.photo_url %}
+            <img src="{{ p.photo_url }}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px">
+            {% endif %}
+            <span style="font-weight:600">{{ p.name }}</span>
+            <div style="font-size:.72rem;color:var(--text-muted)">S/o {{ p.fathers_name }}</div>
+          </td>
+          <td style="font-size:.78rem">{{ p.fir_numbers }}<div style="color:var(--text-muted)">{{ p.thanas }}</div></td>
+          <td style="font-size:.78rem">{{ p.court_name or '—' }}</td>
+          <td style="font-size:.78rem">{{ p.release_date or '—' }}</td>
+          <td style="font-size:.76rem;color:var(--text-muted)">{{ p.approved_at.strftime('%d-%m-%Y') if p.approved_at else '—' }}</td>
+          <td>
+            <button type="button" class="btn btn-xs btn-primary" onclick="openCompleteModal({{ p.bail_id }}, '{{ p.name|e }}')">
+              <i class="fas fa-camera"></i> फ़ोटो/दस्तावेज़ जोड़ें
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div style="padding:48px;text-align:center;color:var(--text-muted)">
+    <i class="fas fa-circle-check" style="font-size:2.5rem;margin-bottom:12px;display:block;opacity:.25;color:var(--success)"></i>
+    <p>कोई लंबित रिकॉर्ड नहीं — सभी Excel बल्क जमानतों की फ़ोटो/दस्तावेज़ पूर्ण हैं।</p>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Complete photo/document modal ─────────────────────────────────────── -->
+<div id="completeModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:12px;max-width:460px;width:92%;max-height:90vh;overflow-y:auto;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 style="font-size:1rem;font-weight:700" id="modalAccusedName">फ़ोटो/दस्तावेज़ जोड़ें</h3>
+      <button type="button" onclick="closeCompleteModal()" class="btn btn-outline btn-xs"><i class="fas fa-xmark"></i></button>
+    </div>
+    <form method="post" id="completeForm" enctype="multipart/form-data">
+      <div class="form-group">
+        <label class="form-label">अभियुक्त की लाइव geo-tagged फ़ोटो</label>
+        <div id="cameraIdleState">
+          <button type="button" class="btn btn-outline btn-sm" id="startCameraBtn"><i class="fas fa-camera"></i> कैमरा शुरू करें</button>
+        </div>
+        <div id="cameraLiveState" style="display:none">
+          <video id="pendingCameraVideo" autoplay playsinline style="width:100%;border-radius:8px;background:#000"></video>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button type="button" class="btn btn-primary btn-sm" id="captureBtn"><i class="fas fa-camera-retro"></i> फ़ोटो लें</button>
+            <button type="button" class="btn btn-outline btn-sm" id="cancelCameraBtn">रद्द करें</button>
+          </div>
+        </div>
+        <div id="cameraCapturedState" style="display:none">
+          <img id="capturedPreview" style="width:100%;border-radius:8px">
+          <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" id="retakeBtn"><i class="fas fa-rotate-left"></i> फिर से लें</button>
+        </div>
+        <canvas id="captureCanvas" style="display:none"></canvas>
+        <input type="hidden" name="bail_photo_data" id="bailPhotoDataInput">
+      </div>
+      <div class="form-group">
+        <label class="form-label">जमानत दस्तावेज़</label>
+        <input type="file" name="bail_document" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+      </div>
+      <div class="form-text" style="margin-bottom:10px"><i class="fas fa-circle-info"></i> फ़ोटो या दस्तावेज़ में से कम से कम एक अपलोड करें।</div>
+      <div style="display:flex;gap:8px">
+        <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-check"></i> पूर्ण करें</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeCompleteModal()">रद्द करें</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let mediaStream = null;
+
+function openCompleteModal(bailId, name) {
+  document.getElementById('modalAccusedName').textContent = 'फ़ोटो/दस्तावेज़ जोड़ें — ' + name;
+  document.getElementById('completeForm').action = '{{ url_for("super.bail_complete_photo", bail_id=0) }}'.replace('/0/complete', '/' + bailId + '/complete');
+  document.getElementById('completeModalOverlay').style.display = 'flex';
+}
+function closeCompleteModal() {
+  stopCamera();
+  document.getElementById('completeModalOverlay').style.display = 'none';
+  document.getElementById('bailPhotoDataInput').value = '';
+  document.getElementById('cameraCapturedState').style.display = 'none';
+  document.getElementById('cameraIdleState').style.display = 'block';
+}
+async function startCamera() {
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    document.getElementById('pendingCameraVideo').srcObject = mediaStream;
+    document.getElementById('cameraIdleState').style.display = 'none';
+    document.getElementById('cameraLiveState').style.display = 'block';
+  } catch (err) {
+    alert('कैमरा शुरू नहीं हो सका। कृपया अनुमति दें।');
+  }
+}
+function stopCamera() {
+  if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+}
+function capturePhoto() {
+  const video = document.getElementById('pendingCameraVideo');
+  const canvas = document.getElementById('captureCanvas');
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+  document.getElementById('capturedPreview').src = dataUrl;
+  document.getElementById('bailPhotoDataInput').value = dataUrl;
+  stopCamera();
+  document.getElementById('cameraLiveState').style.display = 'none';
+  document.getElementById('cameraCapturedState').style.display = 'block';
+}
+document.getElementById('startCameraBtn').addEventListener('click', startCamera);
+document.getElementById('captureBtn').addEventListener('click', capturePhoto);
+document.getElementById('cancelCameraBtn').addEventListener('click', () => {
+  stopCamera();
+  document.getElementById('cameraLiveState').style.display = 'none';
+  document.getElementById('cameraIdleState').style.display = 'block';
+});
+document.getElementById('retakeBtn').addEventListener('click', () => {
+  document.getElementById('bailPhotoDataInput').value = '';
+  document.getElementById('cameraCapturedState').style.display = 'none';
+  document.getElementById('cameraIdleState').style.display = 'block';
+});
+window.addEventListener('beforeunload', stopCamera);
+</script>
+{% endblock %}

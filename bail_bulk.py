@@ -28,14 +28,44 @@ import re
 import json
 import logging
 from datetime import datetime, date
-from difflib import SequenceMatcher
 
-from flask import session
+from flask import session, request, redirect, url_for, flash, render_template
 
 from db import get_connection
-from utils import upload_image, upload_document
+from utils import upload_image, upload_document, log_activity
 
 logger = logging.getLogger(__name__)
+
+
+# ── Fuzzy-match engine ──────────────────────────────────────────────────────
+# rapidfuzz (C-accelerated) is used when available — far faster than
+# difflib.SequenceMatcher at production batch sizes (hundreds of Excel rows
+# x thousands of candidate accused per district), and more forgiving of the
+# small typos/transpositions common in hand-typed Hindi court sheets. Falls
+# back to the stdlib difflib ratio if rapidfuzz isn't installed, so this
+# module never hard-fails on a missing optional dependency.
+try:
+    from rapidfuzz import fuzz as _rf_fuzz
+    from rapidfuzz.distance import JaroWinkler as _rf_jw
+
+    def _raw_similarity(a: str, b: str) -> float:
+        # Blend token-sort ratio (robust to word-order swaps, e.g. someone
+        # typing "सोनकर करन" instead of "करन सोनकर") with Jaro-Winkler
+        # (rewards long common prefixes, typical of Indian given names).
+        ts = _rf_fuzz.token_sort_ratio(a, b) / 100.0
+        jw = _rf_jw.similarity(a, b)
+        return max(ts, jw)
+
+    _FUZZY_ENGINE = 'rapidfuzz'
+except ImportError:  # pragma: no cover - exercised only when dep missing
+    from difflib import SequenceMatcher
+
+    def _raw_similarity(a: str, b: str) -> float:
+        return SequenceMatcher(None, a, b).ratio()
+
+    _FUZZY_ENGINE = 'difflib'
+
+logger.info(f"bail_bulk fuzzy-match engine: {_FUZZY_ENGINE}")
 
 
 # ── session helpers (mirrors accused_common.py) ────────────────────────────
@@ -53,10 +83,12 @@ def _bp():       return 'admin' if _role() == 'admin' else 'super'
 #    <name>       <पुत्र> <father>  <निवासी> <address ... थाना THANA DISTRICT>
 
 _FATHER_SPLIT_RE = re.compile(
-    r'\s+(?:s/o|S/O|पुत्र|पुत्री|w/o|W/O|d/o|D/O|पति|पत्नी)\s+'
+    r'\s+(?:s/o|S/O|पुत्र|पुत्री|सुपुत्र|सुपुत्री|आत्मज|आत्मजा|w/o|W/O|d/o|D/O|पति|पत्नी)\s+',
+    re.IGNORECASE
 )
-_ADDRESS_SPLIT_RE = re.compile(r'\s+निवासी\s+')
+_ADDRESS_SPLIT_RE = re.compile(r'\s+(?:निवासी|नि0|साकिन)\s+')
 _THANA_IN_ADDRESS_RE = re.compile(r'थाना\s+(.+)$')
+_PUNCT_CLEAN_RE = re.compile(r'[.,;:।]+')
 
 
 def parse_bail_name_address(raw: str) -> dict:
@@ -93,36 +125,51 @@ def parse_bail_name_address(raw: str) -> dict:
     }
 
 
+_NAME_PREFIXES = ['श्री ', 'श्रीमती ', 'सुश्री ', 'स्व0 ', 'स्व ', 'स्वर्गीय ',
+                  'Mr. ', 'Mrs. ', 'Smt. ', 'Shri ', 'Ms. ', 'Dr. ']
+
+
 def normalize_name(name: str) -> str:
     """Same normalization as accused_common.normalize_name (kept local to
-    avoid a circular import — both modules must stay in sync)."""
+    avoid a circular import — both modules must stay in sync).
+    Strips honorifics, punctuation, and collapses whitespace so trivial
+    formatting differences ("श्री करन सोनकर" vs "करन सोनकर," vs "करन  सोनकर")
+    never cost match score."""
     if not name:
         return ''
     n = name.strip()
-    for prefix in ['श्री ', 'श्रीमती ', 'Mr. ', 'Mrs. ', 'Smt. ', 'Shri ']:
-        if n.startswith(prefix):
-            n = n[len(prefix):]
+    changed = True
+    while changed:
+        changed = False
+        for prefix in _NAME_PREFIXES:
+            if n.lower().startswith(prefix.lower()):
+                n = n[len(prefix):].strip()
+                changed = True
+    n = _PUNCT_CLEAN_RE.sub(' ', n)
     return re.sub(r'\s+', ' ', n).strip().lower()
 
 
 def normalize_thana(thana: str) -> str:
-    """Normalize a थाना string for loose comparison: strip 'थाना' word,
-    trailing '0' (common OCR/typing artifact for '।'/'०' in UP Police
-    sheets, e.g. 'को0 देहात'), and collapse whitespace."""
+    """Normalize a थाना string for loose comparison: strip a leading
+    'थाना' word, drop stray '0' digits (a common OCR/typing artifact for
+    '।'/full-stops in UP Police sheets, e.g. 'को0 देहात' / 'को0शहर'),
+    strip punctuation, and collapse whitespace."""
     if not thana:
         return ''
     t = thana.strip()
-    t = re.sub(r'^थाना\s+', '', t)
-    t = re.sub(r'0\b', '', t)          # 'को0' -> 'को'
+    t = re.sub(r'^थाना\s*', '', t)
+    t = t.replace('0', '')             # 'को0देहात' -> 'कोदेहात'
+    t = _PUNCT_CLEAN_RE.sub(' ', t)
     t = re.sub(r'\s+', ' ', t).strip().lower()
     return t
 
 
 def name_similarity(a: str, b: str) -> float:
-    """0..1 similarity between two normalized strings."""
+    """0..1 similarity between two normalized strings, via the configured
+    fuzzy engine (rapidfuzz if installed, else difflib)."""
     if not a or not b:
         return 0.0
-    return SequenceMatcher(None, a, b).ratio()
+    return _raw_similarity(a, b)
 
 
 def weighted_match_score(name_a, name_b, father_a, father_b) -> tuple:
@@ -292,6 +339,33 @@ def classify_match(candidates, resolved_fir_id):
 #  11 जेल जाने का दिनांक | 12 रिहा किये जाने की तिथी | 13 चौकी/हल्का | 14 बीट सं0
 BAIL_EXCEL_COLUMNS = 15
 
+# Production guardrail: a single court-order sheet is a few hundred rows at
+# most in real usage; capping this protects the request/DB from an
+# accidental (or malicious) multi-thousand-row upload tying up a worker.
+MAX_BAIL_EXCEL_ROWS = 3000
+
+# Header detection: prior versions matched any row containing the substring
+# 'अभियुक्त' anywhere — which false-positives on a *title* row like
+# "...जेल से रिहा हुए अभियुक्तगण का विवरण दिनांक..." (a very common first
+# line in real UP-Police jail-release sheets, incl. the one this system
+# ships a sample of). That caused the real header row to be read as data.
+# Strong markers are phrases that only ever appear in the actual column
+# header; weak markers alone must co-occur (>=2) to count, so a title
+# mentioning one police/legal term in passing doesn't get mistaken for it.
+_HEADER_STRONG_MARKERS = ['नाम पता', 'नाम  पता', 'नाम एवं पता']
+_HEADER_WEAK_MARKERS = ['क्र0सं0', 'क्र0', 'थाना', 'मु0अ0सं0', 'अभियुक्त', 'फोटो', 'न्यायालय']
+
+
+def _looks_like_header_row(row) -> bool:
+    cells = [str(c) for c in row if c not in (None, '')]
+    if not cells:
+        return False
+    text = ' '.join(cells)
+    if any(marker in text for marker in _HEADER_STRONG_MARKERS):
+        return True
+    hits = sum(1 for marker in _HEADER_WEAK_MARKERS if marker in text)
+    return hits >= 2
+
 
 def stage_bail_excel(file, filename: str, district: str, uploaded_by: int) -> int:
     """
@@ -299,115 +373,170 @@ def stage_bail_excel(file, filename: str, district: str, uploaded_by: int) -> in
     the batch + all rows (matched and unmatched alike) to the database,
     and return the new batch_id. Does NOT create any bail record yet —
     that only happens on confirm_batch().
+
+    Raises ValueError with a Hindi, user-facing message on any parse
+    failure (bad file, too many rows, no header found, etc); the staged
+    batch row (if already created) is cleaned up before re-raising so a
+    failed upload never leaves a phantom empty batch behind.
     """
     import openpyxl
-    wb = openpyxl.load_workbook(file, data_only=True)
-    ws = wb.active
+    try:
+        wb = openpyxl.load_workbook(file, data_only=True, read_only=True)
+        ws = wb.active
+    except Exception as e:
+        logger.error(f"stage_bail_excel: workbook load failed: {e}")
+        raise ValueError('Excel फ़ाइल पढ़ी नहीं जा सकी। कृपया मान्य .xlsx फ़ाइल अपलोड करें।')
 
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
+    batch_id = None
 
-    cursor.execute("""
-        INSERT INTO bail_excel_batch (district, filename, uploaded_by, status)
-        VALUES (%s, %s, %s, 'staged')
-    """, (district, filename, uploaded_by))
-    batch_id = cursor.lastrowid
+    try:
+        cursor.execute("""
+            INSERT INTO bail_excel_batch (district, filename, uploaded_by, status)
+            VALUES (%s, %s, %s, 'staged')
+        """, (district, filename, uploaded_by))
+        batch_id = cursor.lastrowid
 
-    # Find the header row (first row containing 'अभियुक्त' anywhere), then
-    # start reading data from the row right after it. Falls back to row 2.
-    header_row_idx = 1
-    for idx, row in enumerate(ws.iter_rows(min_row=1, max_row=min(5, ws.max_row), values_only=True), start=1):
-        if row and any(cell and 'अभियुक्त' in str(cell) for cell in row):
-            header_row_idx = idx
-            break
+        # Find the real header row by scanning further than before (title
+        # blocks can span 1-2 merged rows) and using the stronger detector.
+        header_row_idx = None
+        scan_limit = min(10, ws.max_row or 10)
+        for idx, row in enumerate(
+                ws.iter_rows(min_row=1, max_row=scan_limit, values_only=True), start=1):
+            if row and _looks_like_header_row(row):
+                header_row_idx = idx
+                break
+        if header_row_idx is None:
+            # Nothing matched the header heuristic at all — safest fallback
+            # is row 1 (better to mis-parse one junk row than silently skip
+            # every real data row), but log loudly so it's caught in review.
+            header_row_idx = 1
+            logger.warning(
+                f"stage_bail_excel: no header row detected in '{filename}', "
+                f"defaulting to row 1 — verify column mapping in review."
+            )
 
-    total_rows, matched_rows, error_rows = 0, 0, 0
+        total_rows, matched_rows, error_rows = 0, 0, 0
 
-    for row_idx, row in enumerate(
-            ws.iter_rows(min_row=header_row_idx + 1, values_only=True), start=header_row_idx + 1):
-        if not row or not any(row):
-            continue
-        cells = (list(row) + [None] * BAIL_EXCEL_COLUMNS)[:BAIL_EXCEL_COLUMNS]
-        (_sr, thana_col, fir_number_col, _st_no, _ipc, _bns,
-         accused_field, _photo, criminal_history, court_name,
-         bail_date_raw, jail_date_raw, release_date_raw, _chowki, _beat) = cells
+        for row_idx, row in enumerate(
+                ws.iter_rows(min_row=header_row_idx + 1, values_only=True), start=header_row_idx + 1):
+            if not row or not any(row):
+                continue
+            if total_rows >= MAX_BAIL_EXCEL_ROWS:
+                logger.warning(
+                    f"stage_bail_excel: row cap ({MAX_BAIL_EXCEL_ROWS}) hit for "
+                    f"batch {batch_id}, remaining rows skipped."
+                )
+                break
+            cells = (list(row) + [None] * BAIL_EXCEL_COLUMNS)[:BAIL_EXCEL_COLUMNS]
+            (_sr, thana_col, fir_number_col, _st_no, _ipc, _bns,
+             accused_field, _photo, criminal_history, court_name,
+             bail_date_raw, jail_date_raw, release_date_raw, _chowki, _beat) = cells
 
-        accused_field = str(accused_field or '').strip()
-        if not accused_field:
-            continue  # blank accused cell — nothing to import for this row
+            accused_field = str(accused_field or '').strip()
+            if not accused_field:
+                continue  # blank accused cell — nothing to import for this row
 
-        total_rows += 1
-        parsed = parse_bail_name_address(accused_field)
-        thana_col_s = str(thana_col or '').strip()
-        fir_number_s = str(fir_number_col or '').strip()
+            total_rows += 1
+            parsed = parse_bail_name_address(accused_field)
+            thana_col_s = str(thana_col or '').strip()
+            fir_number_s = str(fir_number_col or '').strip()
 
-        if not parsed['name']:
+            if not parsed['name']:
+                cursor.execute("""
+                    INSERT INTO bail_excel_row
+                        (batch_id, row_no, raw_name_field, parsed_name, parsed_fathers_name,
+                         parsed_address, thana_col, fir_number_col, court_name, jail_date,
+                         release_date, bail_date, criminal_history, match_status, include_in_confirm)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'not_found',0)
+                """, (batch_id, row_idx, accused_field, '', '', parsed['address'],
+                      thana_col_s, fir_number_s, str(court_name or '').strip(),
+                      parse_excel_date(jail_date_raw), parse_excel_date(release_date_raw),
+                      parse_excel_date(bail_date_raw), str(criminal_history or '').strip()))
+                error_rows += 1
+                continue
+
+            candidates, resolved_fir_id, _lookup = find_accused_candidates(
+                cursor, district, parsed['name'], parsed['fathers_name'],
+                thana_col_s, fir_number_s
+            )
+            status, matched_id, fir_ids = classify_match(candidates, resolved_fir_id)
+
+            # already_bailed check: only relevant if the *exact* normalized
+            # name+father exists but is currently excluded from the eligible
+            # pool because they already have an active bail.
+            if status == 'not_found':
+                name_norm = normalize_name(parsed['name'])
+                father_norm = normalize_name(parsed['fathers_name'])
+                cursor.execute("""
+                    SELECT a.id FROM accused a
+                    WHERE a.name_normalized = %s AND a.fathers_normalized = %s
+                    AND a.bail_status != 'none'
+                    LIMIT 1
+                """, (name_norm, father_norm))
+                if cursor.fetchone():
+                    status = 'already_bailed'
+
+            if status == 'matched':
+                matched_rows += 1
+            else:
+                error_rows += 1
+
             cursor.execute("""
                 INSERT INTO bail_excel_row
-                    (batch_id, row_number, raw_name_field, parsed_name, parsed_fathers_name,
+                    (batch_id, row_no, raw_name_field, parsed_name, parsed_fathers_name,
                      parsed_address, thana_col, fir_number_col, court_name, jail_date,
-                     release_date, bail_date, criminal_history, match_status, include_in_confirm)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'not_found',0)
-            """, (batch_id, row_idx, accused_field, '', '', parsed['address'],
-                  thana_col_s, fir_number_s, str(court_name or '').strip(),
-                  parse_excel_date(jail_date_raw), parse_excel_date(release_date_raw),
-                  parse_excel_date(bail_date_raw), str(criminal_history or '').strip()))
-            error_rows += 1
-            continue
+                     release_date, bail_date, criminal_history, match_status,
+                     matched_accused_id, match_confidence, candidate_ids, resolved_fir_ids,
+                     include_in_confirm)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """, (
+                batch_id, row_idx, accused_field, parsed['name'], parsed['fathers_name'],
+                parsed['address'], thana_col_s, fir_number_s, str(court_name or '').strip(),
+                parse_excel_date(jail_date_raw), parse_excel_date(release_date_raw),
+                parse_excel_date(bail_date_raw), str(criminal_history or '').strip(),
+                status, matched_id,
+                candidates[0]['score'] if candidates else None,
+                ','.join(str(c['accused_id']) for c in candidates) if status == 'ambiguous' else None,
+                ','.join(str(i) for i in fir_ids) if fir_ids else None,
+                1 if status == 'matched' else 0,
+            ))
 
-        candidates, resolved_fir_id, _lookup = find_accused_candidates(
-            cursor, district, parsed['name'], parsed['fathers_name'],
-            thana_col_s, fir_number_s
-        )
-        status, matched_id, fir_ids = classify_match(candidates, resolved_fir_id)
-
-        # already_bailed check: only relevant if the *exact* normalized
-        # name+father exists but is currently excluded from the eligible
-        # pool because they already have an active bail.
-        if status == 'not_found':
-            name_norm = normalize_name(parsed['name'])
-            father_norm = normalize_name(parsed['fathers_name'])
-            cursor.execute("""
-                SELECT a.id FROM accused a
-                WHERE a.name_normalized = %s AND a.fathers_normalized = %s
-                AND a.bail_status != 'none'
-                LIMIT 1
-            """, (name_norm, father_norm))
-            if cursor.fetchone():
-                status = 'already_bailed'
-
-        if status == 'matched':
-            matched_rows += 1
-        else:
-            error_rows += 1
+        if total_rows == 0:
+            raise ValueError(
+                'Excel में कोई मान्य अभियुक्त पंक्ति नहीं मिली। कृपया जाँचें कि "अभियुक्त '
+                'का नाम पता" कॉलम भरा है और फ़ाइल सही टेम्पलेट में है।'
+            )
 
         cursor.execute("""
-            INSERT INTO bail_excel_row
-                (batch_id, row_number, raw_name_field, parsed_name, parsed_fathers_name,
-                 parsed_address, thana_col, fir_number_col, court_name, jail_date,
-                 release_date, bail_date, criminal_history, match_status,
-                 matched_accused_id, match_confidence, candidate_ids, resolved_fir_ids,
-                 include_in_confirm)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-        """, (
-            batch_id, row_idx, accused_field, parsed['name'], parsed['fathers_name'],
-            parsed['address'], thana_col_s, fir_number_s, str(court_name or '').strip(),
-            parse_excel_date(jail_date_raw), parse_excel_date(release_date_raw),
-            parse_excel_date(bail_date_raw), str(criminal_history or '').strip(),
-            status, matched_id,
-            candidates[0]['score'] if candidates else None,
-            ','.join(str(c['accused_id']) for c in candidates) if status == 'ambiguous' else None,
-            ','.join(str(i) for i in fir_ids) if fir_ids else None,
-            1 if status == 'matched' else 0,
-        ))
+            UPDATE bail_excel_batch SET total_rows=%s, matched_rows=%s, error_rows=%s WHERE id=%s
+        """, (total_rows, matched_rows, error_rows, batch_id))
+        conn.commit()
+        return batch_id
 
-    cursor.execute("""
-        UPDATE bail_excel_batch SET total_rows=%s, matched_rows=%s, error_rows=%s WHERE id=%s
-    """, (total_rows, matched_rows, error_rows, batch_id))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    return batch_id
+    except ValueError:
+        conn.rollback()
+        if batch_id:
+            try:
+                cursor.execute("DELETE FROM bail_excel_batch WHERE id=%s", (batch_id,))
+                conn.commit()
+            except Exception:
+                pass
+        raise
+    except Exception as e:
+        logger.error(f"stage_bail_excel: unexpected error for '{filename}': {e}")
+        conn.rollback()
+        if batch_id:
+            try:
+                cursor.execute("DELETE FROM bail_excel_batch WHERE id=%s", (batch_id,))
+                conn.commit()
+            except Exception:
+                pass
+        raise ValueError('Excel प्रोसेस करते समय त्रुटि हुई। फ़ाइल फ़ॉर्मैट जाँचें और पुनः प्रयास करें।')
+    finally:
+        cursor.close()
+        conn.close()
 
 
 # ── Review: fetch a staged batch for admin confirmation ─────────────────────
@@ -436,7 +565,7 @@ def get_batch_review(batch_id: int, district: str):
         FROM bail_excel_row r
         LEFT JOIN accused a ON a.id = r.matched_accused_id
         WHERE r.batch_id=%s
-        ORDER BY r.row_number
+        ORDER BY r.row_no
     """, (batch_id,))
     rows = cursor.fetchall()
 
@@ -467,6 +596,103 @@ def get_batch_review(batch_id: int, district: str):
     cursor.close()
     conn.close()
     return batch, rows
+
+
+# ── Resolve an 'ambiguous' row: admin manually picks the correct candidate ──
+
+def resolve_ambiguous_row(batch_id: int, row_id: int, accused_id: int, district: str):
+    """
+    Admin looked at an 'ambiguous' row's candidate list (2+ near-equal
+    fuzzy matches) and picked the correct accused by eye. Promotes the row
+    to 'matched' against that accused_id so it becomes eligible for
+    confirm_batch(). Refuses silently-wrong picks by validating the
+    accused_id was actually one of the offered candidates for this row.
+    """
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT r.*, b.district FROM bail_excel_row r
+        JOIN bail_excel_batch b ON b.id = r.batch_id
+        WHERE r.id=%s AND r.batch_id=%s AND b.district=%s
+    """, (row_id, batch_id, district))
+    row = cursor.fetchone()
+    if not row or row['match_status'] != 'ambiguous':
+        cursor.close(); conn.close()
+        return False, 'यह पंक्ति ambiguous स्थिति में नहीं है।'
+
+    candidate_ids = [int(x) for x in (row['candidate_ids'] or '').split(',') if x]
+    if accused_id not in candidate_ids:
+        cursor.close(); conn.close()
+        return False, 'चुना गया अभियुक्त इस पंक्ति के संभावित मैचों में नहीं है।'
+
+    cursor.execute("""
+        SELECT DISTINCT f.id FROM accused_fir af
+        JOIN fir_cases f ON f.id = af.fir_id
+        WHERE af.accused_id=%s AND af.in_arrested=1 AND f.district=%s
+    """, (accused_id, district))
+    fir_ids = [r['id'] for r in cursor.fetchall()]
+    if not fir_ids:
+        cursor.close(); conn.close()
+        return False, 'चुने गए अभियुक्त की इस जिले में कोई गिरफ़्तारी FIR नहीं मिली।'
+
+    cursor.execute("""
+        UPDATE bail_excel_row
+        SET match_status='matched', matched_accused_id=%s,
+            resolved_fir_ids=%s, include_in_confirm=1
+        WHERE id=%s
+    """, (accused_id, ','.join(str(i) for i in fir_ids), row_id))
+    cursor.execute("""
+        UPDATE bail_excel_batch
+        SET matched_rows = matched_rows + 1, error_rows = error_rows - 1
+        WHERE id=%s
+    """, (batch_id,))
+    conn.commit()
+    cursor.close(); conn.close()
+    return True, 'पंक्ति सफलतापूर्वक मैच कर दी गई — अब confirm करने पर जमानत बनेगी।'
+
+
+# ── Discard a staged batch without creating any bail record ─────────────────
+
+def discard_batch(batch_id: int, district: str, uid: int):
+    """Abandon a staged batch entirely (e.g. wrong file uploaded). Rows are
+    cascade-deleted with the batch; no accused/bail data is ever touched
+    since nothing is written outside bail_excel_* until confirm_batch()."""
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM bail_excel_batch WHERE id=%s AND district=%s", (batch_id, district))
+    batch = cursor.fetchone()
+    if not batch:
+        cursor.close(); conn.close()
+        return False, 'बैच नहीं मिला।'
+    if batch['status'] != 'staged':
+        cursor.close(); conn.close()
+        return False, 'यह बैच पहले ही प्रोसेस/डिसकार्ड हो चुका है।'
+    cursor.execute(
+        "UPDATE bail_excel_batch SET status='discarded', confirmed_by=%s, confirmed_at=NOW() WHERE id=%s",
+        (uid, batch_id)
+    )
+    conn.commit()
+    cursor.close(); conn.close()
+    return True, 'बैच डिसकार्ड कर दिया गया — कोई जमानत रिकॉर्ड नहीं बनाया गया।'
+
+
+# ── Batch history (all uploads for this district, any status) ───────────────
+
+def list_batches(district: str, limit: int = 50):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT b.*, u.name AS uploaded_by_name, c.name AS confirmed_by_name
+        FROM bail_excel_batch b
+        LEFT JOIN users u ON u.id = b.uploaded_by
+        LEFT JOIN users c ON c.id = b.confirmed_by
+        WHERE b.district=%s
+        ORDER BY b.created_at DESC
+        LIMIT %s
+    """, (district, limit))
+    rows = cursor.fetchall()
+    cursor.close(); conn.close()
+    return rows
 
 
 # ── Confirm: create real bail records for the rows admin approved ───────────
@@ -529,7 +755,7 @@ def confirm_batch(batch_id: int, district: str, confirmed_row_ids: list, resolve
             accused_id, fir_ids[0], bail_type, bail_start, bail_end,
             resolved_by_uid, r['court_name'], r['jail_date'], r['release_date'],
             r['criminal_history'], batch_id,
-            json.dumps({'raw_name_field': r['raw_name_field'], 'row_number': r['row_number']},
+            json.dumps({'raw_name_field': r['raw_name_field'], 'row_no': r['row_number']},
                        ensure_ascii=False),
         ))
         bail_id = cursor.lastrowid
@@ -556,6 +782,38 @@ def confirm_batch(batch_id: int, district: str, confirmed_row_ids: list, resolve
     conn.commit()
     cursor.close()
     conn.close()
+
+    # ── Send FCM push + in-app notification for each approved bail ────────────
+    # Done AFTER commit so bail records are persisted before notification fires.
+    # Import here to avoid circular imports.
+    try:
+        from utils import send_bail_notification
+        from run import mail as _mail
+    except Exception:
+        _mail = None
+
+    for item in created:
+        try:
+            send_bail_notification(
+                district=district,
+                accused_name=item['name'],
+                fir_label=f"अभियुक्त ID:{item['accused_id']}",
+                bail_type='temporary',
+                bail_start=None,
+                bail_end=None,
+                bail_remark='Excel बल्क जमानत स्वीकृति',
+                bail_rating=0,
+                approved_by_name=f'Batch #{batch_id}',
+                approved_by_id=resolved_by_uid,
+                mail_instance=_mail,
+            )
+        except Exception as _notif_err:
+            import logging
+            logging.getLogger(__name__).error(
+                f"[Notify] Excel batch confirm notification error for "
+                f"accused {item['accused_id']}: {_notif_err}"
+            )
+
     return {'created': created, 'skipped': skipped}
 
 
@@ -600,11 +858,18 @@ def complete_bail_photo(bail_id: int, district: str, uid: int,
         SELECT abh.*, a.name, a.photo_url AS accused_photo_url
         FROM accused_bail_history abh JOIN accused a ON a.id = abh.accused_id
         WHERE abh.id=%s
-    """, (bail_id,))
+        AND EXISTS (
+            SELECT 1 FROM accused_bail_fir x JOIN fir_cases fx ON fx.id = x.fir_id
+            WHERE x.bail_id = abh.id AND fx.district = %s
+        )
+    """, (bail_id, district))
     bail = cursor.fetchone()
     if not bail:
         cursor.close(); conn.close()
-        return False, 'जमानत रिकॉर्ड नहीं मिला।'
+        return False, 'जमानत रिकॉर्ड नहीं मिला या आपके जिले का नहीं है।'
+    if bail['photo_status'] == 'complete':
+        cursor.close(); conn.close()
+        return False, 'यह रिकॉर्ड पहले ही पूर्ण किया जा चुका है।'
 
     photo_url, photo_public_id = None, None
     if photo_data and photo_data.startswith('data:image'):
@@ -655,3 +920,158 @@ def complete_bail_photo(bail_id: int, district: str, uid: int,
     cursor.close()
     conn.close()
     return True, 'फ़ोटो/दस्तावेज़ सफलतापूर्वक जोड़ा गया — जमानत रिकॉर्ड पूर्ण।'
+
+# ══════════════════════════════════════════════════════════════════════════
+# Flask route handlers — thin views over the functions above, following the
+# same (role='admin'|'super') convention as accused_common.py so admin.py /
+# super_admin.py only need one-line route wrappers around these.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _bp_for(role):
+    return 'admin' if role == 'admin' else 'super'
+
+
+ALLOWED_EXCEL_EXTENSIONS = ('.xlsx', '.xls')
+MAX_EXCEL_FILE_BYTES = 15 * 1024 * 1024  # 15 MB — generous for a few-hundred-row sheet
+
+
+def handle_bail_excel_upload(role='admin'):
+    """
+    GET  -> upload form
+    POST -> validate + stage_bail_excel() -> redirect to review page
+    """
+    bp = _bp_for(role)
+    district = session.get('district')
+
+    if request.method == 'POST':
+        file = request.files.get('bail_excel')
+        if not file or not file.filename:
+            flash('कृपया एक Excel फ़ाइल चुनें।', 'danger')
+            return redirect(url_for(f'{bp}.bail_excel_upload'))
+
+        filename = file.filename
+        if not filename.lower().endswith(ALLOWED_EXCEL_EXTENSIONS):
+            flash('केवल .xlsx / .xls फ़ाइलें स्वीकार्य हैं।', 'danger')
+            return redirect(url_for(f'{bp}.bail_excel_upload'))
+
+        file.seek(0, 2)
+        size = file.tell()
+        file.seek(0)
+        if size > MAX_EXCEL_FILE_BYTES:
+            flash('फ़ाइल आकार 15MB से अधिक है — कृपया छोटी फ़ाइल अपलोड करें।', 'danger')
+            return redirect(url_for(f'{bp}.bail_excel_upload'))
+        if size == 0:
+            flash('फ़ाइल खाली है।', 'danger')
+            return redirect(url_for(f'{bp}.bail_excel_upload'))
+
+        try:
+            batch_id = stage_bail_excel(file, filename, district, session['user_id'])
+        except ValueError as e:
+            flash(str(e), 'danger')
+            return redirect(url_for(f'{bp}.bail_excel_upload'))
+
+        log_activity(session['user_id'], session.get('role'),
+                     f"Uploaded bail Excel batch #{batch_id} ('{filename}')",
+                     ip=request.remote_addr)
+        flash('फ़ाइल सफलतापूर्वक अपलोड व प्रोसेस हो गई — नीचे परिणाम की समीक्षा करें।', 'success')
+        return redirect(url_for(f'{bp}.bail_excel_review', batch_id=batch_id))
+
+    batches = list_batches(district)
+    return render_template(f'{bp}/bail_excel_upload.html', batches=batches)
+
+
+def handle_batch_review(batch_id: int, role='admin'):
+    """GET -> show every row of a staged batch, grouped by match status."""
+    bp = _bp_for(role)
+    district = session.get('district')
+    batch, rows = get_batch_review(batch_id, district)
+    if not batch:
+        flash('बैच नहीं मिला।', 'danger')
+        return redirect(url_for(f'{bp}.bail_excel_upload'))
+
+    grouped = {'matched': [], 'ambiguous': [], 'not_found': [], 'already_bailed': [], 'fir_not_found': []}
+    for r in rows:
+        grouped.setdefault(r['match_status'], []).append(r)
+
+    return render_template(f'{bp}/bail_batch_review.html', batch=batch, rows=rows, grouped=grouped)
+
+
+def handle_resolve_ambiguous(batch_id: int, row_id: int, role='admin'):
+    """POST -> admin manually resolved an ambiguous row to a specific accused_id."""
+    bp = _bp_for(role)
+    district = session.get('district')
+    accused_id = request.form.get('accused_id', type=int)
+    if not accused_id:
+        flash('कृपया सूची में से एक अभियुक्त चुनें।', 'danger')
+        return redirect(url_for(f'{bp}.bail_excel_review', batch_id=batch_id))
+
+    ok, msg = resolve_ambiguous_row(batch_id, row_id, accused_id, district)
+    flash(msg, 'success' if ok else 'danger')
+    return redirect(url_for(f'{bp}.bail_excel_review', batch_id=batch_id))
+
+
+def handle_batch_confirm(batch_id: int, role='admin'):
+    """POST -> create real accused_bail_history rows for every checked row."""
+    bp = _bp_for(role)
+    district = session.get('district')
+    confirmed_row_ids = request.form.getlist('row_ids', type=int)
+
+    if not confirmed_row_ids:
+        flash('स्वीकृत करने हेतु कम से कम एक पंक्ति चुनें।', 'warning')
+        return redirect(url_for(f'{bp}.bail_excel_review', batch_id=batch_id))
+
+    result = confirm_batch(batch_id, district, confirmed_row_ids, session['user_id'])
+    if result.get('error'):
+        flash(result['error'], 'danger')
+        return redirect(url_for(f'{bp}.bail_excel_upload'))
+
+    log_activity(session['user_id'], session.get('role'),
+                 f"Confirmed bail Excel batch #{batch_id}: "
+                 f"{len(result['created'])} created, {len(result['skipped'])} skipped",
+                 ip=request.remote_addr)
+
+    if result['created']:
+        names = ', '.join(c['name'] for c in result['created'][:5])
+        more = f" +{len(result['created'])-5} और" if len(result['created']) > 5 else ''
+        flash(f"{len(result['created'])} अभियुक्तों की जमानत स्वीकृत की गई: {names}{more}। "
+              f"फ़ोटो/दस्तावेज़ 'लंबित फ़ोटो' सूची से पूर्ण करें।", 'success')
+    if result['skipped']:
+        reasons = '; '.join(f"पंक्ति {s['row']}: {s['reason']}" for s in result['skipped'][:5])
+        flash(f"{len(result['skipped'])} पंक्तियाँ छोड़ी गईं — {reasons}", 'warning')
+
+    return redirect(url_for(f'{bp}.bail_pending_photos'))
+
+
+def handle_batch_discard(batch_id: int, role='admin'):
+    """POST -> abandon a staged batch, no bail records created."""
+    bp = _bp_for(role)
+    district = session.get('district')
+    ok, msg = discard_batch(batch_id, district, session['user_id'])
+    flash(msg, 'success' if ok else 'danger')
+    return redirect(url_for(f'{bp}.bail_excel_upload'))
+
+
+def handle_pending_photos(role='admin'):
+    """GET -> list every bail record created by Excel-bulk import that is
+    still waiting for its geo-tagged photo / supporting document."""
+    bp = _bp_for(role)
+    district = session.get('district')
+    pending = list_pending_photo_bails(district)
+    return render_template(f'{bp}/bail_pending_photos.html', pending=pending)
+
+
+def handle_complete_photo(bail_id: int, role='admin'):
+    """POST -> attach the captured photo and/or document to a pending record."""
+    bp = _bp_for(role)
+    district = session.get('district')
+    photo_data = request.form.get('bail_photo_data', '').strip() or None
+    doc_file = request.files.get('bail_document')
+
+    ok, msg = complete_bail_photo(bail_id, district, session['user_id'],
+                                   photo_data=photo_data, doc_file=doc_file)
+    flash(msg, 'success' if ok else 'danger')
+    if ok:
+        log_activity(session['user_id'], session.get('role'),
+                     f"Completed pending photo/document for bail record #{bail_id}",
+                     ip=request.remote_addr)
+    return redirect(url_for(f'{bp}.bail_pending_photos'))

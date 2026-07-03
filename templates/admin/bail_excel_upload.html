@@ -1,0 +1,119 @@
+{% extends "shared/base.html" %}
+{% block title %}Excel बल्क जमानत स्वीकृति{% endblock %}
+{% block page_title %}Excel बल्क जमानत स्वीकृति{% endblock %}
+
+{% block sidebar_nav %}
+{% include "shared/admin_sidebar.html" %}
+{% endblock %}
+
+{% block content %}
+<div style="max-width:820px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+    <a href="{{ url_for('admin.bailed_accused') }}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i></a>
+    <h2 style="font-size:1.05rem;font-weight:700">माननीय न्यायालय की जमानत/रिहाई सूची — Excel बल्क अपलोड</h2>
+  </div>
+
+  <div class="card" style="margin-bottom:18px;border:1px solid rgba(156,39,176,.2)">
+    <div class="card-header" style="background:rgba(156,39,176,.05)">
+      <span class="card-title" style="color:var(--badge-bail)"><i class="fas fa-circle-info"></i> यह कैसे काम करता है</span>
+    </div>
+    <div class="card-body" style="font-size:.82rem;line-height:1.7;color:var(--text)">
+      <ol style="margin:0;padding-left:18px">
+        <li><b>अपलोड</b> — न्यायालय/जेल की Excel सूची अपलोड करें (जैसी है वैसी — "अभियुक्त का नाम पता" कॉलम में नाम + पिता का नाम + पता एक साथ हो सकते हैं)।</li>
+        <li><b>स्वचालित पहचान</b> — सिस्टम हर पंक्ति के नाम व पिता के नाम की सिस्टम में मौजूद <b>गिरफ़्तार</b> अभियुक्तों से फ़ज़ी-मैचिंग करता है, थाना/मु0अ0सं0 से क्रॉस-चेक करता है।</li>
+        <li><b>समीक्षा</b> — आपको हर पंक्ति का परिणाम दिखेगा: मैच मिला / एक से अधिक संभावित मैच / नहीं मिला / पहले से जमानत। कोई भी पंक्ति स्वतः स्वीकृत नहीं होती।</li>
+        <li><b>पुष्टि</b> — आप जिन पंक्तियों को चुनकर पुष्टि करेंगे, केवल उन्हीं की जमानत स्वीकृत होगी — फ़ोटो/दस्तावेज़ "लंबित" चिह्नित रहेंगे, बाद में अलग से अपलोड कर सकते हैं।</li>
+      </ol>
+      <div style="margin-top:10px;padding:10px 12px;background:rgba(255,193,7,.08);border-radius:8px;border:1px solid rgba(255,193,7,.25)">
+        <i class="fas fa-triangle-exclamation" style="color:var(--warning)"></i>
+        जो अभियुक्त सिस्टम में नहीं मिलते या जिनकी जमानत पहले से स्वीकृत है, वे कभी छुपाए नहीं जाते — समीक्षा पृष्ठ पर स्पष्ट रूप से नाम सहित दिखाए जाते हैं।
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title"><i class="fas fa-file-arrow-up"></i> Excel फ़ाइल अपलोड करें</span></div>
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data" id="bailUploadForm">
+        <div class="upload-area" id="dropArea" onclick="document.getElementById('bailExcelInput').click()">
+          <i class="fas fa-file-excel" style="font-size:2.5rem;color:var(--success)"></i>
+          <div style="margin-top:8px;font-weight:600">यहाँ क्लिक करें या Excel फ़ाइल खींचें</div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">केवल .xlsx / .xls फ़ाइलें, अधिकतम 15MB</div>
+        </div>
+        <input type="file" id="bailExcelInput" name="bail_excel" accept=".xlsx,.xls" style="display:none" onchange="showFileName(this)" required>
+        <div id="fileInfo" style="display:none;margin-top:10px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;align-items:center;gap:10px">
+          <i class="fas fa-file-excel" style="color:var(--success);font-size:1.3rem"></i>
+          <div>
+            <div id="fileName" style="font-weight:600;font-size:.85rem"></div>
+            <div id="fileSize" style="font-size:.75rem;color:var(--text-muted)"></div>
+          </div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:10px">
+          <button type="submit" class="btn btn-primary" id="uploadBtn"><i class="fas fa-upload"></i> अपलोड करें व मैच खोजें</button>
+          <a href="{{ url_for('admin.bail_pending_photos') }}" class="btn btn-outline"><i class="fas fa-camera"></i> फ़ोटो/दस्तावेज़ लंबित सूची</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if batches %}
+  <div class="card" style="margin-top:18px">
+    <div class="card-header"><span class="card-title"><i class="fas fa-clock-rotate-left"></i> अपलोड इतिहास</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>फ़ाइल</th><th>अपलोड</th><th>कुल</th><th>मैच</th><th>त्रुटि</th><th>स्थिति</th><th>कार्रवाई</th></tr>
+        </thead>
+        <tbody>
+          {% for b in batches %}
+          <tr>
+            <td style="font-size:.8rem">{{ b.filename }}</td>
+            <td style="font-size:.76rem;color:var(--text-muted)">{{ b.created_at.strftime('%d-%m-%Y %H:%M') if b.created_at else '—' }}<br>{{ b.uploaded_by_name or '—' }}</td>
+            <td>{{ b.total_rows }}</td>
+            <td style="color:var(--success);font-weight:600">{{ b.matched_rows }}</td>
+            <td style="color:var(--danger);font-weight:600">{{ b.error_rows }}</td>
+            <td>
+              {% if b.status == 'staged' %}<span class="badge badge-pending"><i class="fas fa-hourglass-half"></i> लंबित समीक्षा</span>
+              {% elif b.status == 'confirmed' %}<span class="badge badge-complete"><i class="fas fa-circle-check"></i> पुष्टि हो गई</span>
+              {% else %}<span class="badge badge-revoked"><i class="fas fa-ban"></i> डिसकार्ड</span>{% endif %}
+            </td>
+            <td>
+              {% if b.status == 'staged' %}
+              <a href="{{ url_for('admin.bail_excel_review', batch_id=b.id) }}" class="btn btn-xs btn-primary"><i class="fas fa-eye"></i> समीक्षा करें</a>
+              {% else %}
+              <a href="{{ url_for('admin.bail_excel_review', batch_id=b.id) }}" class="btn btn-xs btn-outline"><i class="fas fa-eye"></i> देखें</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showFileName(input) {
+  if (input.files && input.files[0]) {
+    const f = input.files[0];
+    document.getElementById('fileName').textContent = f.name;
+    document.getElementById('fileSize').textContent = (f.size/1024).toFixed(1) + ' KB';
+    document.getElementById('fileInfo').style.display = 'flex';
+  }
+}
+const dropArea = document.getElementById('dropArea');
+['dragover','dragenter'].forEach(e => dropArea.addEventListener(e, ev => { ev.preventDefault(); dropArea.classList.add('dragover'); }));
+['dragleave','drop'].forEach(e => dropArea.addEventListener(e, ev => { ev.preventDefault(); dropArea.classList.remove('dragover'); }));
+dropArea.addEventListener('drop', ev => {
+  const files = ev.dataTransfer.files;
+  if (files.length) { document.getElementById('bailExcelInput').files = files; showFileName(document.getElementById('bailExcelInput')); }
+});
+document.getElementById('bailUploadForm').addEventListener('submit', () => {
+  document.getElementById('uploadBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> प्रोसेस हो रहा है…';
+  document.getElementById('uploadBtn').disabled = true;
+});
+</script>
+{% endblock %}

@@ -7,6 +7,14 @@
 {% endblock %}
 
 {% block content %}
+<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+  <a href="{{ url_for('admin.bail_excel_upload') }}" class="btn btn-sm btn-primary">
+    <i class="fas fa-file-excel"></i> Excel से बल्क जमानत स्वीकृति
+  </a>
+  <a href="{{ url_for('admin.bail_pending_photos') }}" class="btn btn-sm btn-outline">
+    <i class="fas fa-camera"></i> फ़ोटो/दस्तावेज़ लंबित
+  </a>
+</div>
 <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
   <a href="?status=ACTIVE&per_page={{ per_page }}"
      class="btn btn-sm {% if status_filter=='ACTIVE' %}btn-success{% else %}btn-outline{% endif %}">
@@ -86,7 +94,10 @@
             <a href="{{ url_for('admin.accused_detail', accused_id=b.id) }}" style="font-weight:600;color:var(--primary);text-decoration:none">{{ b.name }}</a>
             <div style="font-size:.72rem;color:var(--text-muted)">S/o {{ b.fathers_name }}</div>
           </td>
-          <td><code style="font-size:.75rem">{{ b.fir_number }}</code><div style="font-size:.72rem;color:var(--text-muted)">{{ b.thana }}</div></td>
+          <td><code style="font-size:.75rem">{{ b.all_firs or (b.fir_number ~ '/' ~ b.thana) }}</code>
+            {% if b.source == 'excel_bulk' %}<div style="font-size:.68rem;color:var(--text-muted)"><i class="fas fa-file-excel"></i> Excel बल्क</div>{% endif %}
+            {% if b.photo_status == 'pending' %}<div style="font-size:.68rem;color:var(--warning)"><i class="fas fa-hourglass-half"></i> फ़ोटो लंबित</div>{% endif %}
+          </td>
           <td>
             {% if b.bail_type == 'temporary' %}
             <span class="badge" style="background:rgba(255,152,0,.15);color:#e65100"><i class="fas fa-hourglass-half"></i> अस्थायी</span>

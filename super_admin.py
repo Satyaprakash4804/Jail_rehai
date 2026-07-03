@@ -15,6 +15,10 @@ from accused_common import (get_fir_list, get_fir_detail, get_accused_list,
                              create_fir_manual, download_accused_sample_file,
                              approve_accused_bail, revoke_accused_bail,
                              get_bailed_accused_list)
+from bail_bulk import (handle_bail_excel_upload, handle_batch_review,
+                        handle_resolve_ambiguous, handle_batch_confirm,
+                        handle_batch_discard, handle_pending_photos,
+                        handle_complete_photo)
 import logging, csv, io
 from datetime import datetime
 from werkzeug.security import generate_password_hash
@@ -335,6 +339,52 @@ def revoke_bail_accused(accused_id):
 @super_required
 def bailed_accused():
     return get_bailed_accused_list(role='super')
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BAIL EXCEL BULK APPROVAL — same feature-set as admin, super_admin scope
+# ══════════════════════════════════════════════════════════════════════════════
+
+@super_bp.route('/bail-excel/upload', methods=['GET', 'POST'])
+@super_required
+def bail_excel_upload():
+    return handle_bail_excel_upload(role='super')
+
+
+@super_bp.route('/bail-excel/batch/<int:batch_id>')
+@super_required
+def bail_excel_review(batch_id):
+    return handle_batch_review(batch_id, role='super')
+
+
+@super_bp.route('/bail-excel/batch/<int:batch_id>/row/<int:row_id>/resolve', methods=['POST'])
+@super_required
+def bail_excel_resolve(batch_id, row_id):
+    return handle_resolve_ambiguous(batch_id, row_id, role='super')
+
+
+@super_bp.route('/bail-excel/batch/<int:batch_id>/confirm', methods=['POST'])
+@super_required
+def bail_excel_confirm(batch_id):
+    return handle_batch_confirm(batch_id, role='super')
+
+
+@super_bp.route('/bail-excel/batch/<int:batch_id>/discard', methods=['POST'])
+@super_required
+def bail_excel_discard(batch_id):
+    return handle_batch_discard(batch_id, role='super')
+
+
+@super_bp.route('/bail-pending-photos')
+@super_required
+def bail_pending_photos():
+    return handle_pending_photos(role='super')
+
+
+@super_bp.route('/bail-pending-photos/<int:bail_id>/complete', methods=['POST'])
+@super_required
+def bail_complete_photo(bail_id):
+    return handle_complete_photo(bail_id, role='super')
 
 
 @super_bp.route('/fir')

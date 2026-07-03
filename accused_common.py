@@ -577,18 +577,33 @@ def get_accused_detail(accused_id: int):
     has_active_bail = bool(accused.get('bail_status') and accused['bail_status'] != 'none')
 
     # Full bail history (never filtered/deleted — always shown so repeated
-    # arrests/FIRs for the same accused keep their complete jamanat record)
+    # arrests/FIRs for the same accused keep their complete jamanat record).
+    # A bail record may now cover multiple FIRs (accused_bail_fir junction);
+    # fir_number/thana stay as the *primary* FIR for backward-compatible
+    # display, while all_firs/fir_count expose the full multi-FIR list.
     cursor.execute("""
         SELECT abh.*, abh.status AS bail_history_status, f.fir_number, f.thana, f.district,
+               GROUP_CONCAT(DISTINCT CONCAT(f2.fir_number,'/',f2.thana)
+                            ORDER BY f2.fir_number SEPARATOR ', ') AS all_firs,
+               COUNT(DISTINCT f2.id) AS fir_count,
                u1.name AS approved_by_name, u2.name AS revoked_by_name
         FROM accused_bail_history abh
         JOIN fir_cases f ON f.id = abh.fir_id
+        LEFT JOIN accused_bail_fir abf ON abf.bail_id = abh.id
+        LEFT JOIN fir_cases f2 ON f2.id = abf.fir_id
         LEFT JOIN users u1 ON u1.id = abh.approved_by
         LEFT JOIN users u2 ON u2.id = abh.revoked_by
         WHERE abh.accused_id = %s
+        GROUP BY abh.id
         ORDER BY abh.approved_at DESC
     """, (accused_id,))
     bail_history = cursor.fetchall()
+    for b in bail_history:
+        # Legacy rows created before accused_bail_fir existed have no
+        # junction rows — fall back to the single primary FIR for display.
+        if not b.get('all_firs'):
+            b['all_firs'] = f"{b['fir_number']}/{b['thana']}"
+            b['fir_count'] = 1
     cursor.close(); conn.close()
 
     tmpl = f'{_bp()}/accused_detail.html'
@@ -641,7 +656,14 @@ def approve_accused_bail(accused_id: int, role='admin'):
         return redirect(url_for(f'{bp}.accused_detail', accused_id=accused_id))
 
     if request.method == 'POST':
-        fir_id      = request.form.get('fir_id', type=int)
+        # एक जमानत रिकॉर्ड में एक से अधिक गिरफ़्तारी FIR चुनने का समर्थन —
+        # checkbox list "fir_ids"। पुराने single-select फ़ॉर्म से भी संगत
+        # रहने हेतु "fir_id" fallback भी स्वीकार किया जाता है।
+        fir_ids = request.form.getlist('fir_ids', type=int)
+        if not fir_ids:
+            legacy_fir_id = request.form.get('fir_id', type=int)
+            if legacy_fir_id:
+                fir_ids = [legacy_fir_id]
         bail_type   = request.form.get('bail_type', 'temporary')
         bail_start  = request.form.get('bail_start_date', '').strip() or None
         bail_end    = request.form.get('bail_end_date', '').strip() or None
@@ -651,10 +673,12 @@ def approve_accused_bail(accused_id: int, role='admin'):
             bail_end = None
 
         valid_fir_ids = {f['id'] for f in arrest_firs}
-        if fir_id not in valid_fir_ids:
-            flash('मान्य गिरफ़्तारी FIR चुनें।', 'danger')
+        fir_ids = [fid for fid in dict.fromkeys(fir_ids) if fid in valid_fir_ids]  # dedupe, keep order
+        if not fir_ids:
+            flash('कम से कम एक मान्य गिरफ़्तारी FIR चुनें।', 'danger')
             cursor.close(); conn.close()
             return render_template(f'{bp}/approve_accused_bail.html', accused=accused, arrest_firs=arrest_firs)
+        fir_id = fir_ids[0]  # primary FIR — kept for backward-compat single-FIR column
 
         # जमानत की तिथियाँ भूतकाल में नहीं हो सकतीं (server-side check —
         # भले ही ब्राउज़र की date-picker पहले से ही पिछली तिथियाँ रोकती है)
@@ -751,10 +775,19 @@ def approve_accused_bail(accused_id: int, role='admin'):
               doc_url, doc_pub_id, doc_res_type or 'raw',
               bail_photo_url, bail_photo_public_id, photo_lat_val, photo_lng_val, photo_time_val,
               bail_remark, bail_rating, _uid()))
+        bail_id = cursor.lastrowid
+
+        # हर चुनी गई FIR को accused_bail_fir में जोड़ें (fir_id सहित, ताकि
+        # junction table हमेशा पूर्ण रहे और डिस्प्ले क्वेरी उसी पर निर्भर हो सके)
+        for fid in fir_ids:
+            cursor.execute("""
+                INSERT IGNORE INTO accused_bail_fir (bail_id, fir_id) VALUES (%s, %s)
+            """, (bail_id, fid))
         conn.commit()
 
-        fir_row = next((f for f in arrest_firs if f['id'] == fir_id), None)
-        fir_label = f"{fir_row['fir_number']}/{fir_row['thana']}" if fir_row else '—'
+        fir_rows_selected = [f for f in arrest_firs if f['id'] in fir_ids]
+        fir_label = ', '.join(f"{f['fir_number']}/{f['thana']}" for f in fir_rows_selected) or '—'
+        fir_row = fir_rows_selected[0] if fir_rows_selected else None
 
         log_activity(_uid(), _role(),
                      f"Approved {bail_type} bail for accused ID:{accused_id} (FIR {fir_label})",
@@ -839,19 +872,27 @@ def get_bailed_accused_list(role='admin'):
         SELECT abh.id AS bail_id, abh.bail_type, abh.bail_start_date, abh.bail_end_date,
                abh.bail_remark, abh.bail_rating, abh.status AS bail_history_status,
                abh.bail_document_url, abh.approved_at, abh.revoked_at, abh.completed_at,
-               abh.revoke_reason,
+               abh.revoke_reason, abh.photo_status, abh.source,
                a.id, a.name, a.fathers_name, a.photo_url,
                f.fir_number, f.thana, f.district,
+               GROUP_CONCAT(DISTINCT CONCAT(f2.fir_number,'/',f2.thana)
+                            ORDER BY f2.fir_number SEPARATOR ', ') AS all_firs,
                g.name AS approved_by_name, r.name AS revoked_by_name
         FROM accused_bail_history abh
         JOIN accused a ON a.id = abh.accused_id
         JOIN fir_cases f ON f.id = abh.fir_id
+        LEFT JOIN accused_bail_fir abf ON abf.bail_id = abh.id
+        LEFT JOIN fir_cases f2 ON f2.id = abf.fir_id
         LEFT JOIN users g ON g.id = abh.approved_by
         LEFT JOIN users r ON r.id = abh.revoked_by
         WHERE {where}
+        GROUP BY abh.id
         ORDER BY abh.approved_at DESC
     """
     rows, total, total_pages = paginate_query(cursor, base_q, params, page, per_page)
+    for b in rows:
+        if not b.get('all_firs'):
+            b['all_firs'] = f"{b['fir_number']}/{b['thana']}"
     cursor.close(); conn.close()
 
     tmpl = f'{bp}/bailed_accused.html'

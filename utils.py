@@ -213,7 +213,11 @@ def send_bail_notification(district, accused_name, fir_label,
         # Notify every admin AND super_admin of this district
         cursor.execute("""
             SELECT id, name, email, role FROM users
-            WHERE district=%s AND role IN ('admin','super_admin')
+            WHERE (
+                (district=%s AND role IN ('admin','super_admin'))
+                OR
+                (district='All' AND role IN ('master','super_admin'))
+            )
             AND is_active=1
         """, (district,))
         recipients = cursor.fetchall()

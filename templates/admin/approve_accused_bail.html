@@ -22,18 +22,23 @@
     </div>
     <div class="card-body">
       <div class="form-text" style="margin-bottom:14px">
-        <i class="fas fa-circle-info"></i> जमानत केवल उस FIR के आधार पर स्वीकृत की जा सकती है जिसमें यह अभियुक्त गिरफ़्तार दर्शाया गया है।
+        <i class="fas fa-circle-info"></i> जमानत केवल उन FIR के आधार पर स्वीकृत की जा सकती है जिनमें यह अभियुक्त गिरफ़्तार दर्शाया गया है — एक से अधिक FIR चुनी जा सकती हैं, यदि यह जमानत सभी को कवर करती है।
       </div>
       <form method="post" enctype="multipart/form-data" id="bailForm">
 
         <div class="form-group">
-          <label class="form-label">गिरफ़्तारी FIR चुनें <span class="required">*</span></label>
-          <select name="fir_id" class="form-control form-select" required>
-            <option value="">-- FIR चुनें --</option>
+          <label class="form-label">गिरफ़्तारी FIR चुनें (एक से अधिक चुन सकते हैं) <span class="required">*</span></label>
+          <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;max-height:220px;overflow-y:auto">
             {% for f in arrest_firs %}
-            <option value="{{ f.id }}">{{ f.fir_number }} / {{ f.thana }} ({{ f.district }})</option>
+            <label class="checkbox-option" style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer">
+              <input type="checkbox" name="fir_ids" value="{{ f.id }}" class="fir-checkbox">
+              <span><strong>{{ f.fir_number }}</strong> / {{ f.thana }} <span style="color:var(--text-muted);font-size:.75rem">({{ f.district }})</span></span>
+            </label>
             {% endfor %}
-          </select>
+          </div>
+          <div class="form-text" id="firSelectError" style="display:none;color:var(--danger);margin-top:4px">
+            <i class="fas fa-triangle-exclamation"></i> कम से कम एक FIR चुनें।
+          </div>
         </div>
 
         <div class="form-group">
@@ -82,46 +87,73 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">अभियुक्त की लाइव geo-tagged फ़ोटो <span class="required">*</span></label>
+          <label class="form-label">अभियुक्त की फ़ोटो <span class="required">*</span></label>
           <div class="form-text" style="margin-bottom:8px">
-            <i class="fas fa-circle-info"></i> कैमरे से अभी ली गई फ़ोटो अनिवार्य है — गैलरी से पुरानी फ़ोटो अपलोड नहीं की जा सकती। फ़ोटो पर तारीख़, समय और स्थान (lat/long) स्वतः अंकित होंगे।
+            <i class="fas fa-circle-info"></i> कैमरे से लाइव फ़ोटो लें (तारीख़, समय और स्थान स्वतः अंकित होंगे) या मौजूदा फ़ोटो अपलोड करें।
           </div>
 
-          <div id="cameraIdleState">
-            <button type="button" class="btn btn-outline" id="startCameraBtn">
-              <i class="fas fa-camera"></i> कैमरा शुरू करें
-            </button>
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button type="button" class="btn btn-outline btn-sm" id="modeCameraBtn"><i class="fas fa-camera"></i> कैमरा से लें</button>
+            <button type="button" class="btn btn-outline btn-sm" id="modeUploadBtn"><i class="fas fa-upload"></i> फ़ोटो अपलोड करें</button>
           </div>
 
-          <div id="cameraLiveState" style="display:none">
-            <div style="position:relative;max-width:420px;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:#000">
-              <video id="bailCameraVideo" autoplay playsinline style="width:100%;display:block"></video>
+          <!-- ── कैमरा मोड ─────────────────────────────────────────── -->
+          <div id="cameraModeSection">
+            <div id="cameraIdleState">
+              <button type="button" class="btn btn-outline" id="startCameraBtn">
+                <i class="fas fa-camera"></i> कैमरा शुरू करें
+              </button>
             </div>
-            <div style="display:flex;gap:8px;margin-top:8px">
-              <button type="button" class="btn btn-primary btn-sm" id="captureBtn"><i class="fas fa-camera-retro"></i> फ़ोटो लें</button>
-              <button type="button" class="btn btn-outline btn-sm" id="cancelCameraBtn">रद्द करें</button>
+
+            <div id="cameraLiveState" style="display:none">
+              <div style="position:relative;max-width:420px;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:#000">
+                <video id="bailCameraVideo" autoplay playsinline style="width:100%;display:block"></video>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button type="button" class="btn btn-primary btn-sm" id="captureBtn"><i class="fas fa-camera-retro"></i> फ़ोटो लें</button>
+                <button type="button" class="btn btn-outline btn-sm" id="cancelCameraBtn">रद्द करें</button>
+              </div>
+            </div>
+
+            <div id="cameraCapturedState" style="display:none">
+              <div style="max-width:420px;border-radius:10px;overflow:hidden;border:1px solid var(--border)">
+                <img id="capturedPhotoPreview" style="width:100%;display:block" alt="Captured geo-tagged photo">
+              </div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button type="button" class="btn btn-outline btn-sm" id="retakeBtn"><i class="fas fa-rotate-left"></i> फिर से फ़ोटो लें</button>
+                <span class="badge badge-complete" style="align-self:center"><i class="fas fa-circle-check"></i> फ़ोटो कैप्चर हो गई</span>
+              </div>
+            </div>
+
+            <div id="cameraLocationStatus" class="form-text" style="margin-top:6px">
+              <i class="fas fa-location-crosshairs"></i> <span id="locationStatusText">स्थान (GPS) प्राप्त किया जा रहा है…</span>
+            </div>
+
+            <canvas id="bailCaptureCanvas" style="display:none"></canvas>
+          </div>
+
+          <!-- ── अपलोड मोड ─────────────────────────────────────────── -->
+          <div id="uploadModeSection" style="display:none">
+            <input type="file" id="bailPhotoUploadInput" name="bail_photo_upload" accept="image/*" class="form-control">
+            <div id="uploadPreviewWrap" style="display:none;margin-top:10px">
+              <div style="max-width:420px;border-radius:10px;overflow:hidden;border:1px solid var(--border)">
+                <img id="uploadedPhotoPreview" style="width:100%;display:block" alt="Uploaded photo preview">
+              </div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button type="button" class="btn btn-outline btn-sm" id="removeUploadBtn"><i class="fas fa-trash"></i> हटाएँ</button>
+                <span class="badge badge-complete" style="align-self:center"><i class="fas fa-circle-check"></i> फ़ोटो चुनी गई</span>
+              </div>
+            </div>
+            <div class="form-text" style="margin-top:8px;color:var(--warning)">
+              <i class="fas fa-triangle-exclamation"></i> अपलोड की गई फ़ोटो पर स्थान (GPS) व तारीख़/समय स्वतः अंकित नहीं होंगे — यह केवल कैमरा से ली गई लाइव फ़ोटो में ही संभव है।
             </div>
           </div>
 
-          <div id="cameraCapturedState" style="display:none">
-            <div style="max-width:420px;border-radius:10px;overflow:hidden;border:1px solid var(--border)">
-              <img id="capturedPhotoPreview" style="width:100%;display:block" alt="Captured geo-tagged photo">
-            </div>
-            <div style="display:flex;gap:8px;margin-top:8px">
-              <button type="button" class="btn btn-outline btn-sm" id="retakeBtn"><i class="fas fa-rotate-left"></i> फिर से फ़ोटो लें</button>
-              <span class="badge badge-complete" style="align-self:center"><i class="fas fa-circle-check"></i> फ़ोटो कैप्चर हो गई</span>
-            </div>
-          </div>
-
-          <div id="cameraLocationStatus" class="form-text" style="margin-top:6px">
-            <i class="fas fa-location-crosshairs"></i> <span id="locationStatusText">स्थान (GPS) प्राप्त किया जा रहा है…</span>
-          </div>
-
-          <canvas id="bailCaptureCanvas" style="display:none"></canvas>
           <input type="hidden" name="bail_photo_data" id="bailPhotoDataInput">
           <input type="hidden" name="bail_photo_lat" id="bailPhotoLatInput">
           <input type="hidden" name="bail_photo_lng" id="bailPhotoLngInput">
           <input type="hidden" name="bail_photo_captured_at" id="bailPhotoCapturedAtInput">
+          <input type="hidden" name="bail_photo_source" id="bailPhotoSourceInput" value="camera">
         </div>
 
         <div class="form-group">
@@ -188,9 +220,17 @@ for (let i = 1; i <= 5; i++) {
   });
 })();
 
-// ── अभियुक्त की geo-tagged लाइव कैमरा फ़ोटो ─────────────────────────────────
+// ── अभियुक्त की फ़ोटो: लाइव geo-tagged कैमरा कैप्चर या फ़ाइल अपलोड ───────────
 (function () {
   const accusedName   = {{ accused.name|tojson }};
+
+  // Mode toggle elements
+  const modeCameraBtn  = document.getElementById('modeCameraBtn');
+  const modeUploadBtn  = document.getElementById('modeUploadBtn');
+  const cameraSection  = document.getElementById('cameraModeSection');
+  const uploadSection  = document.getElementById('uploadModeSection');
+
+  // Camera elements
   const idleState      = document.getElementById('cameraIdleState');
   const liveState       = document.getElementById('cameraLiveState');
   const capturedState  = document.getElementById('cameraCapturedState');
@@ -198,14 +238,82 @@ for (let i = 1; i <= 5; i++) {
   const canvas          = document.getElementById('bailCaptureCanvas');
   const preview          = document.getElementById('capturedPhotoPreview');
   const locationText    = document.getElementById('locationStatusText');
+
+  // Upload elements
+  const uploadInput      = document.getElementById('bailPhotoUploadInput');
+  const uploadPreviewWrap = document.getElementById('uploadPreviewWrap');
+  const uploadedPreview   = document.getElementById('uploadedPhotoPreview');
+  const removeUploadBtn   = document.getElementById('removeUploadBtn');
+
+  // Shared hidden inputs
   const photoDataInput  = document.getElementById('bailPhotoDataInput');
   const latInput        = document.getElementById('bailPhotoLatInput');
   const lngInput        = document.getElementById('bailPhotoLngInput');
   const capturedAtInput = document.getElementById('bailPhotoCapturedAtInput');
+  const sourceInput     = document.getElementById('bailPhotoSourceInput');
 
   let mediaStream = null;
   let currentLat  = null;
   let currentLng  = null;
+  let activeMode  = 'camera'; // 'camera' | 'upload'
+
+  function setActiveModeStyles() {
+    modeCameraBtn.classList.toggle('btn-primary', activeMode === 'camera');
+    modeCameraBtn.classList.toggle('btn-outline', activeMode !== 'camera');
+    modeUploadBtn.classList.toggle('btn-primary', activeMode === 'upload');
+    modeUploadBtn.classList.toggle('btn-outline', activeMode !== 'upload');
+  }
+
+  function switchToCameraMode() {
+    activeMode = 'camera';
+    sourceInput.value = 'camera';
+    cameraSection.style.display = 'block';
+    uploadSection.style.display = 'none';
+    // Clear any uploaded file so it isn't submitted alongside a camera photo
+    uploadInput.value = '';
+    uploadPreviewWrap.style.display = 'none';
+    setActiveModeStyles();
+  }
+
+  function switchToUploadMode() {
+    activeMode = 'upload';
+    sourceInput.value = 'upload';
+    uploadSection.style.display = 'block';
+    cameraSection.style.display = 'none';
+    // Stop camera + clear any captured camera photo so it isn't submitted alongside an upload
+    stopCamera();
+    liveState.style.display = 'none';
+    capturedState.style.display = 'none';
+    idleState.style.display = 'block';
+    photoDataInput.value = '';
+    latInput.value = '';
+    lngInput.value = '';
+    capturedAtInput.value = '';
+    setActiveModeStyles();
+  }
+
+  modeCameraBtn.addEventListener('click', switchToCameraMode);
+  modeUploadBtn.addEventListener('click', switchToUploadMode);
+  switchToCameraMode(); // default
+
+  uploadInput.addEventListener('change', () => {
+    const file = uploadInput.files && uploadInput.files[0];
+    if (!file) {
+      uploadPreviewWrap.style.display = 'none';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      uploadedPreview.src = e.target.result;
+      uploadPreviewWrap.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  });
+
+  removeUploadBtn.addEventListener('click', () => {
+    uploadInput.value = '';
+    uploadPreviewWrap.style.display = 'none';
+  });
 
   function requestLocation() {
     if (!navigator.geolocation) {
@@ -284,6 +392,7 @@ for (let i = 1; i <= 5; i++) {
     latInput.value = currentLat != null ? currentLat : '';
     lngInput.value = currentLng != null ? currentLng : '';
     capturedAtInput.value = now.toISOString().split('.')[0];
+    sourceInput.value = 'camera';
 
     stopCamera();
     liveState.style.display = 'none';
@@ -304,9 +413,23 @@ for (let i = 1; i <= 5; i++) {
   });
 
   document.getElementById('bailForm').addEventListener('submit', function (e) {
-    if (!photoDataInput.value) {
+    const anyFirChecked = document.querySelectorAll('.fir-checkbox:checked').length > 0;
+    const firError = document.getElementById('firSelectError');
+    if (!anyFirChecked) {
       e.preventDefault();
-      alert('जमानत स्वीकृत करने से पहले कैमरे से अभियुक्त की geo-tagged लाइव फ़ोटो लेना अनिवार्य है।');
+      firError.style.display = 'block';
+      firError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    } else {
+      firError.style.display = 'none';
+    }
+
+    const hasCameraPhoto = !!photoDataInput.value;
+    const hasUploadedPhoto = uploadInput.files && uploadInput.files.length > 0;
+
+    if (!hasCameraPhoto && !hasUploadedPhoto) {
+      e.preventDefault();
+      alert('जमानत स्वीकृत करने से पहले अभियुक्त की फ़ोटो लेना या अपलोड करना अनिवार्य है।');
     }
   });
 

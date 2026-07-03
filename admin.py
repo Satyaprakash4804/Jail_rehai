@@ -32,6 +32,10 @@ from accused_common import (get_fir_list, get_fir_detail, get_accused_list,
                              create_fir_manual, download_accused_sample_file,
                              approve_accused_bail, revoke_accused_bail,
                              get_bailed_accused_list)
+from bail_bulk import (handle_bail_excel_upload, handle_batch_review,
+                        handle_resolve_ambiguous, handle_batch_confirm,
+                        handle_batch_discard, handle_pending_photos,
+                        handle_complete_photo)
 import logging
 from datetime import datetime
 
@@ -241,6 +245,66 @@ def revoke_bail_accused(accused_id):
 def bailed_accused():
     """सभी जमानत-स्वीकृत अभियुक्तों की सूची"""
     return get_bailed_accused_list(role='admin')
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BAIL EXCEL BULK APPROVAL
+#   /admin/bail-excel/upload                       — अपलोड फ़ॉर्म + इतिहास
+#   /admin/bail-excel/batch/<id>                    — समीक्षा (matched/error रो)
+#   /admin/bail-excel/batch/<id>/row/<row_id>/resolve — ambiguous पंक्ति सुलझाएँ
+#   /admin/bail-excel/batch/<id>/confirm            — चुनी पंक्तियों की जमानत बनाएं
+#   /admin/bail-excel/batch/<id>/discard            — बैच रद्द करें
+#   /admin/bail-pending-photos                      — फ़ोटो/दस्तावेज़ लंबित सूची
+#   /admin/bail-pending-photos/<bail_id>/complete    — फ़ोटो/दस्तावेज़ पूर्ण करें
+# ══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/bail-excel/upload', methods=['GET', 'POST'])
+@admin_required
+def bail_excel_upload():
+    """माननीय न्यायालय की जमानत/रिहाई Excel सूची अपलोड — बल्क जमानत स्वीकृति"""
+    return handle_bail_excel_upload(role='admin')
+
+
+@admin_bp.route('/bail-excel/batch/<int:batch_id>')
+@admin_required
+def bail_excel_review(batch_id):
+    """अपलोड बैच की समीक्षा — matched / ambiguous / not_found / already_bailed"""
+    return handle_batch_review(batch_id, role='admin')
+
+
+@admin_bp.route('/bail-excel/batch/<int:batch_id>/row/<int:row_id>/resolve', methods=['POST'])
+@admin_required
+def bail_excel_resolve(batch_id, row_id):
+    """Ambiguous पंक्ति के लिए सही अभियुक्त मैन्युअल रूप से चुनें"""
+    return handle_resolve_ambiguous(batch_id, row_id, role='admin')
+
+
+@admin_bp.route('/bail-excel/batch/<int:batch_id>/confirm', methods=['POST'])
+@admin_required
+def bail_excel_confirm(batch_id):
+    """चुनी गई पंक्तियों के लिए वास्तविक जमानत रिकॉर्ड बनाएं"""
+    return handle_batch_confirm(batch_id, role='admin')
+
+
+@admin_bp.route('/bail-excel/batch/<int:batch_id>/discard', methods=['POST'])
+@admin_required
+def bail_excel_discard(batch_id):
+    """बैच को बिना कोई जमानत बनाए रद्द करें"""
+    return handle_batch_discard(batch_id, role='admin')
+
+
+@admin_bp.route('/bail-pending-photos')
+@admin_required
+def bail_pending_photos():
+    """Excel बल्क से बनी जमानतें जिनकी फ़ोटो/दस्तावेज़ अभी अपलोड होना बाकी है"""
+    return handle_pending_photos(role='admin')
+
+
+@admin_bp.route('/bail-pending-photos/<int:bail_id>/complete', methods=['POST'])
+@admin_required
+def bail_complete_photo(bail_id):
+    """लंबित जमानत रिकॉर्ड के लिए फ़ोटो/दस्तावेज़ अपलोड कर पूर्ण करें"""
+    return handle_complete_photo(bail_id, role='admin')
 
 
 @admin_bp.route('/fir')

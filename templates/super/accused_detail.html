@@ -159,7 +159,18 @@
           <tbody>
             {% for b in bail_history %}
             <tr>
-              <td style="font-weight:700;color:var(--primary)">{{ b.fir_number }}/{{ b.thana }}</td>
+              <td style="font-weight:700;color:var(--primary)">
+                {{ b.all_firs or (b.fir_number ~ '/' ~ b.thana) }}
+                {% if b.fir_count and b.fir_count > 1 %}
+                <span class="badge" style="background:rgba(33,150,243,.12);color:#1565c0;font-size:.65rem;margin-left:4px">{{ b.fir_count }} FIR</span>
+                {% endif %}
+                {% if b.source == 'excel_bulk' %}
+                <div style="font-size:.68rem;color:var(--text-muted);font-weight:400"><i class="fas fa-file-excel"></i> Excel बल्क से</div>
+                {% endif %}
+                {% if b.photo_status == 'pending' %}
+                <div style="font-size:.68rem;color:var(--warning);font-weight:400"><i class="fas fa-hourglass-half"></i> फ़ोटो/दस्तावेज़ लंबित</div>
+                {% endif %}
+              </td>
               <td>{% if b.bail_type=='permanent' %}स्थायी{% else %}अस्थायी{% endif %}</td>
               <td>{{ b.bail_start_date or '—' }}</td>
               <td>{{ b.bail_end_date or '—' }}</td>

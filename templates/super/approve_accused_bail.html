@@ -22,18 +22,23 @@
     </div>
     <div class="card-body">
       <div class="form-text" style="margin-bottom:14px">
-        <i class="fas fa-circle-info"></i> जमानत केवल उस FIR के आधार पर स्वीकृत की जा सकती है जिसमें यह अभियुक्त गिरफ़्तार दर्शाया गया है।
+        <i class="fas fa-circle-info"></i> जमानत केवल उन FIR के आधार पर स्वीकृत की जा सकती है जिनमें यह अभियुक्त गिरफ़्तार दर्शाया गया है — एक से अधिक FIR चुनी जा सकती हैं, यदि यह जमानत सभी को कवर करती है।
       </div>
       <form method="post" enctype="multipart/form-data" id="bailForm">
 
         <div class="form-group">
-          <label class="form-label">गिरफ़्तारी FIR चुनें <span class="required">*</span></label>
-          <select name="fir_id" class="form-control form-select" required>
-            <option value="">-- FIR चुनें --</option>
+          <label class="form-label">गिरफ़्तारी FIR चुनें (एक से अधिक चुन सकते हैं) <span class="required">*</span></label>
+          <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;max-height:220px;overflow-y:auto">
             {% for f in arrest_firs %}
-            <option value="{{ f.id }}">{{ f.fir_number }} / {{ f.thana }} ({{ f.district }})</option>
+            <label class="checkbox-option" style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer">
+              <input type="checkbox" name="fir_ids" value="{{ f.id }}" class="fir-checkbox">
+              <span><strong>{{ f.fir_number }}</strong> / {{ f.thana }} <span style="color:var(--text-muted);font-size:.75rem">({{ f.district }})</span></span>
+            </label>
             {% endfor %}
-          </select>
+          </div>
+          <div class="form-text" id="firSelectError" style="display:none;color:var(--danger);margin-top:4px">
+            <i class="fas fa-triangle-exclamation"></i> कम से कम एक FIR चुनें।
+          </div>
         </div>
 
         <div class="form-group">
@@ -304,6 +309,16 @@ for (let i = 1; i <= 5; i++) {
   });
 
   document.getElementById('bailForm').addEventListener('submit', function (e) {
+    const anyFirChecked = document.querySelectorAll('.fir-checkbox:checked').length > 0;
+    const firError = document.getElementById('firSelectError');
+    if (!anyFirChecked) {
+      e.preventDefault();
+      firError.style.display = 'block';
+      firError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    } else {
+      firError.style.display = 'none';
+    }
     if (!photoDataInput.value) {
       e.preventDefault();
       alert('जमानत स्वीकृत करने से पहले कैमरे से अभियुक्त की geo-tagged लाइव फ़ोटो लेना अनिवार्य है।');

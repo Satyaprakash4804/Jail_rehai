@@ -28,6 +28,9 @@ reportlab==4.2.2
 # Excel
 openpyxl==3.1.5
 
+# Fuzzy matching (bail Excel bulk-approval name/father matching)
+rapidfuzz==3.10.1
+
 # HTTP
 requests==2.32.3
 
