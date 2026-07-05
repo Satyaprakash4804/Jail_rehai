@@ -7,13 +7,17 @@ Changes from original:
   • /api/fcm/delete-token — remove token on logout
   • /api/notifications-preview — powers the notification bell dropdown
   • /save_fcm_token stub replaced with proper implementation
+  • /api/mobile/* — JSON API blueprint (mobile_api.py) for the Flutter app,
+    using the SAME session-cookie auth, DB, and business logic as the web
+    app. Nothing above this line changed; this is purely additive.
 
 All existing routes, blueprints, and middleware are preserved.
 """
 
+from datetime import timedelta
 from flask import Flask, render_template, redirect, url_for, session, request, jsonify
 from flask_mail import Mail
-from config import SECRET_KEY, MAIL_CONFIG, DB_CONFIG
+from config import SECRET_KEY, MAIL_CONFIG, DB_CONFIG, IS_PRODUCTION
 from db import init_db, get_connection
 from utils import init_cloudinary, log_activity, get_accused_bail_alerts
 import logging
@@ -28,6 +32,25 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32 MB
+
+# ── Session cookie config ───────────────────────────────────────────────────
+# Both the web app AND the Flutter app talk to this SAME Flask origin
+# (the mobile app calls /api/mobile/... on the same domain the web UI is
+# served from), so this is a same-origin cookie, not a cross-site one.
+# That means SameSite=Lax is correct for BOTH clients — no need for
+# SameSite=None, which only matters for true cross-site requests and
+# forces Secure=True (HTTPS-only), which is what broke local web login
+# (login -> dashboard -> login redirect loop over plain HTTP).
+#
+#   - SESSION_COOKIE_SECURE is tied to APP_ENV (see config.py):
+#       APP_ENV=production (stpepl.com, HTTPS) -> Secure=True
+#       APP_ENV unset / development (local HTTP, LAN IP)  -> Secure=False
+#
+# This single config now works for: web browser (local + prod) and the
+# Flutter app (local LAN + prod), with no manual switching required.
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = IS_PRODUCTION
 
 # ── Mail ──────────────────────────────────────────────────────────────────────
 for k, v in MAIL_CONFIG.items():
@@ -47,11 +70,13 @@ from master import master_bp
 from super_admin import super_bp
 from admin import admin_bp
 from auth import auth_bp
+from mobile_api import mobile_bp
 
 app.register_blueprint(auth_bp,   url_prefix='/auth')
 app.register_blueprint(master_bp, url_prefix='/master')
 app.register_blueprint(super_bp,  url_prefix='/super')
 app.register_blueprint(admin_bp,  url_prefix='/admin')
+app.register_blueprint(mobile_bp, url_prefix='/api/mobile')
 
 # ── Request logger middleware ─────────────────────────────────────────────────
 @app.after_request
@@ -288,4 +313,4 @@ def server_error(e):
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, host='0.0.0.0', port=4018)
+    app.run(debug=True, host='0.0.0.0', port=5000)
