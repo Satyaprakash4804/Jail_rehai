@@ -291,7 +291,31 @@ def send_bail_notification(district, accused_name, fir_label,
         except Exception as fcm_err:
             logger.error(f"[FCM] Bail-approval push error: {fcm_err}")
 
-        # ── Optional Email ────────────────────────────────────────────────────
+        # ── WhatsApp (Meta Cloud API) ────────────────────────────────────────
+        try:
+            from whatsapp_service import send_bail_whatsapp_notification
+            wa_result = send_bail_whatsapp_notification(
+                district=district,
+                bails=[{
+                    "accused_name": accused_name,
+                    "fir_label": fir_label,
+                    "bail_type": bail_type,
+                    "bail_start": bail_start,
+                    "bail_end": bail_end_display,
+                    "bail_remark": bail_remark,
+                    "bail_rating": bail_rating,
+                }],
+                approved_by_name=approved_by_name,
+                approved_by_id=approved_by_id,
+            )
+            logger.info(
+                f"[WhatsApp] Bail-approval notify for {accused_name}: "
+                f"✓{wa_result.get('sent', 0)} ✗{wa_result.get('failed', 0)}"
+            )
+        except Exception as wa_err:
+            logger.error(f"[WhatsApp] Bail-approval notify error: {wa_err}")
+
+        # ── Optional Email ───────────────────────────────────────────────────
         if mail_instance:
             emails = [
                 u['email'] for u in recipients

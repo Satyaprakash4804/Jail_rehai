@@ -726,19 +726,19 @@ def confirm_batch(batch_id: int, district: str, confirmed_row_ids: list, resolve
         r = all_rows.get(row_id)
         if not r or r['match_status'] != 'matched' or not r['matched_accused_id']:
             if r:
-                skipped.append({'row': r['row_number'], 'reason': 'मैच नहीं — auto-skip'})
+                skipped.append({'row': r['row_no'], 'reason': 'मैच नहीं — auto-skip'})
             continue
 
         accused_id = r['matched_accused_id']
         cursor.execute("SELECT bail_status FROM accused WHERE id=%s", (accused_id,))
         acc = cursor.fetchone()
         if not acc or (acc['bail_status'] and acc['bail_status'] != 'none'):
-            skipped.append({'row': r['row_number'], 'reason': 'अभियुक्त की जमानत पहले ही सक्रिय हो गई — दोबारा नहीं बनाई गई'})
+            skipped.append({'row': r['row_no'], 'reason': 'अभियुक्त की जमानत पहले ही सक्रिय हो गई — दोबारा नहीं बनाई गई'})
             continue
 
         fir_ids = [int(x) for x in (r['resolved_fir_ids'] or '').split(',') if x]
         if not fir_ids:
-            skipped.append({'row': r['row_number'], 'reason': 'कोई गिरफ़्तारी FIR नहीं मिली'})
+            skipped.append({'row': r['row_no'], 'reason': 'कोई गिरफ़्तारी FIR नहीं मिली'})
             continue
 
         bail_type = 'temporary'
@@ -755,7 +755,7 @@ def confirm_batch(batch_id: int, district: str, confirmed_row_ids: list, resolve
             accused_id, fir_ids[0], bail_type, bail_start, bail_end,
             resolved_by_uid, r['court_name'], r['jail_date'], r['release_date'],
             r['criminal_history'], batch_id,
-            json.dumps({'raw_name_field': r['raw_name_field'], 'row_no': r['row_number']},
+            json.dumps({'raw_name_field': r['raw_name_field'], 'row_no': r['row_no']},
                        ensure_ascii=False),
         ))
         bail_id = cursor.lastrowid
@@ -773,7 +773,7 @@ def confirm_batch(batch_id: int, district: str, confirmed_row_ids: list, resolve
 
         cursor.execute("UPDATE bail_excel_row SET created_bail_id=%s WHERE id=%s", (bail_id, r['id']))
 
-        created.append({'row': r['row_number'], 'accused_id': accused_id,
+        created.append({'row': r['row_no'], 'accused_id': accused_id,
                          'name': r['parsed_name'], 'bail_id': bail_id})
 
     cursor.execute("""
@@ -812,6 +812,43 @@ def confirm_batch(batch_id: int, district: str, confirmed_row_ids: list, resolve
             logging.getLogger(__name__).error(
                 f"[Notify] Excel batch confirm notification error for "
                 f"accused {item['accused_id']}: {_notif_err}"
+            )
+
+    # ── WhatsApp: ONE consolidated message for the whole batch ────────────────
+    # Unlike push/email/in-app above (sent per accused), WhatsApp combines
+    # every accused approved in this batch into a single message per
+    # recipient, so an admin approving 20 bails in one Excel upload doesn't
+    # flood district officers with 20 separate WhatsApp messages.
+    if created:
+        try:
+            from whatsapp_service import send_bail_whatsapp_notification
+            wa_bails = [
+                {
+                    "accused_name": item['name'],
+                    "fir_label": f"अभियुक्त ID:{item['accused_id']}",
+                    "bail_type": "temporary",
+                    "bail_start": None,
+                    "bail_end": None,
+                    "bail_remark": "Excel बल्क जमानत स्वीकृति",
+                    "bail_rating": 0,
+                }
+                for item in created
+            ]
+            wa_result = send_bail_whatsapp_notification(
+                district=district,
+                bails=wa_bails,
+                approved_by_name=f'Batch #{batch_id} ({resolved_by_uid})',
+                approved_by_id=resolved_by_uid,
+            )
+            import logging
+            logging.getLogger(__name__).info(
+                f"[WhatsApp] Batch #{batch_id} consolidated notify: "
+                f"✓{wa_result.get('sent', 0)} ✗{wa_result.get('failed', 0)}"
+            )
+        except Exception as _wa_err:
+            import logging
+            logging.getLogger(__name__).error(
+                f"[WhatsApp] Batch #{batch_id} consolidated notify error: {_wa_err}"
             )
 
     return {'created': created, 'skipped': skipped}
