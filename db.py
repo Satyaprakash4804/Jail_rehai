@@ -18,6 +18,9 @@ Tables:
   • bail_excel_row       — बैच की हर पंक्ति + fuzzy-match परिणाम (audit trail)
   • notifications        — in-app notifications (bail approvals etc.)
   • fcm_tokens           — push-notification device tokens
+  • thana_master         — super_admin-managed थाना directory (नाम, संपर्क,
+                           ईमेल) per district — used to route bail-approval
+                           WhatsApp/email alerts to the accused's own थाना
 
 ENCODING NOTE
 -------------
@@ -387,6 +390,22 @@ def init_db():
         created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS thana_master (
+        id          INT AUTO_INCREMENT PRIMARY KEY,
+        district    VARCHAR(100) NOT NULL COMMENT 'super_admin का जिला',
+        thana_name  VARCHAR(150) NOT NULL COMMENT 'थाना नाम (fir_cases.thana से मैच होता है)',
+        contact     VARCHAR(20)  COMMENT 'WhatsApp/SMS भेजने हेतु थाना का संपर्क नंबर',
+        email       VARCHAR(150) COMMENT 'थाना का ईमेल पता',
+        is_active   TINYINT(1) DEFAULT 1,
+        created_by  INT,
+        created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_thana (district, thana_name),
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     """)
 

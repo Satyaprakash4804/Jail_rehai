@@ -19,10 +19,12 @@ from bail_bulk import (handle_bail_excel_upload, handle_batch_review,
                         handle_resolve_ambiguous, handle_batch_confirm,
                         handle_batch_discard, handle_pending_photos,
                         handle_complete_photo)
+from thana_service import (list_thanas, add_thana, update_thana, toggle_thana,
+                            delete_thana, bulk_upload_thanas_from_excel)
 import logging, csv, io
 from datetime import datetime
 from werkzeug.security import generate_password_hash
-from flask import make_response
+from flask import make_response, send_file
 
 super_bp = Blueprint('super', __name__)
 logger   = logging.getLogger(__name__)
@@ -280,6 +282,135 @@ def notifications():
     notifs = get_notifications(session['user_id'], limit=50)
     mark_notifications_read(session['user_id'])
     return render_template('super/notifications.html', notifications=notifs)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# थाना (POLICE STATION) DIRECTORY — WhatsApp/email bail-approval routing
+# ══════════════════════════════════════════════════════════════════════════════
+
+@super_bp.route('/thana')
+@super_required
+def thana_list():
+    district = session.get('district')
+    search = request.args.get('search', '').strip()
+    thanas = list_thanas(district, search)
+    return render_template('super/thana_list.html', thanas=thanas, search=search)
+
+
+@super_bp.route('/thana/add', methods=['POST'])
+@super_required
+def thana_add():
+    district = session.get('district')
+    thana_name = request.form.get('thana_name', '').strip()
+    contact    = request.form.get('contact', '').strip()
+    email      = request.form.get('email', '').strip()
+    ok, err = add_thana(district, thana_name, contact, email, session['user_id'])
+    if ok:
+        log_activity(session['user_id'], session['role'], f"Added/updated थाना {thana_name}", ip=request.remote_addr)
+        flash(f'थाना "{thana_name}" सफलतापूर्वक जोड़ा गया।', 'success')
+    else:
+        flash(err or 'थाना जोड़ने में त्रुटि।', 'danger')
+    return redirect(url_for('super.thana_list'))
+
+
+@super_bp.route('/thana/<int:thana_id>/edit', methods=['POST'])
+@super_required
+def thana_edit(thana_id):
+    district = session.get('district')
+    thana_name = request.form.get('thana_name', '').strip()
+    contact    = request.form.get('contact', '').strip()
+    email      = request.form.get('email', '').strip()
+    ok, err = update_thana(thana_id, district, thana_name, contact, email)
+    if ok:
+        log_activity(session['user_id'], session['role'], f"Updated थाना #{thana_id}", ip=request.remote_addr)
+        flash('थाना विवरण अपडेट किया गया।', 'success')
+    else:
+        flash(err or 'अपडेट करने में त्रुटि।', 'danger')
+    return redirect(url_for('super.thana_list'))
+
+
+@super_bp.route('/thana/<int:thana_id>/toggle', methods=['POST'])
+@super_required
+def thana_toggle(thana_id):
+    district = session.get('district')
+    if toggle_thana(thana_id, district):
+        flash('थाना की स्थिति बदल दी गई।', 'success')
+    else:
+        flash('थाना नहीं मिला।', 'danger')
+    return redirect(url_for('super.thana_list'))
+
+
+@super_bp.route('/thana/<int:thana_id>/delete', methods=['POST'])
+@super_required
+def thana_delete(thana_id):
+    district = session.get('district')
+    if delete_thana(thana_id, district):
+        log_activity(session['user_id'], session['role'], f"Deleted थाना #{thana_id}", ip=request.remote_addr)
+        flash('थाना हटा दिया गया।', 'success')
+    else:
+        flash('थाना नहीं मिला।', 'danger')
+    return redirect(url_for('super.thana_list'))
+
+
+@super_bp.route('/thana/upload', methods=['GET', 'POST'])
+@super_required
+def thana_upload():
+    if request.method == 'POST':
+        file = request.files.get('excel_file')
+        if not file or not file.filename:
+            flash('कृपया Excel फ़ाइल चुनें।', 'danger')
+            return render_template('super/thana_upload.html')
+        fname = file.filename.lower()
+        if not (fname.endswith('.xlsx') or fname.endswith('.xls')):
+            flash('केवल .xlsx या .xls फ़ाइल अपलोड करें।', 'danger')
+            return render_template('super/thana_upload.html')
+
+        result = bulk_upload_thanas_from_excel(session.get('district'), file, session['user_id'])
+        flash(f"{result['success']} थाना जोड़े/अपडेट किए गए। असफल: {len(result['failed'])}",
+              'success' if not result['failed'] else 'warning')
+        for m in result['failed'][:10]:
+            flash(m, 'warning')
+        log_activity(session['user_id'], session['role'],
+                     f"Bulk uploaded {result['success']} थाना", ip=request.remote_addr)
+        return redirect(url_for('super.thana_list'))
+    return render_template('super/thana_upload.html')
+
+
+@super_bp.route('/thana/download-sample')
+@super_required
+def thana_download_sample():
+    """Return a sample .xlsx matching the format bulk_upload_thanas_from_excel expects."""
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'थाना सूची'
+
+        headers = ['thana_name', 'contact', 'email']
+        ws.append(headers)
+        header_fill = PatternFill("solid", fgColor="1a73e8")
+        for cell in ws[1]:
+            cell.font = Font(bold=True, color="FFFFFF", size=11)
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center', wrap_text=True)
+
+        ws.append(['थाना कोतवाली', '9876543210', 'kotwali@example.com'])
+        ws.append(['थाना देहात', '9876500000', 'dehat.thana@example.com'])
+
+        for i, w in enumerate([25, 18, 30], 1):
+            ws.column_dimensions[chr(64 + i)].width = w
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return send_file(
+            buf, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True, download_name='thana_upload_sample.xlsx'
+        )
+    except ImportError:
+        flash('openpyxl install करें: pip install openpyxl', 'danger')
+        return redirect(url_for('super.thana_list'))
 
 
 # ══════════════════════════════════════════════════════════════════════════════

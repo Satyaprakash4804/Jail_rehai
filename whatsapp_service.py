@@ -167,6 +167,69 @@ def get_whatsapp_recipients_for_district(district, exclude_user_id=None):
         return []
 
 
+# ── थाना-routed sender (uses the SAME templates, an explicit recipient list) ──
+
+def send_bail_whatsapp_to_recipients(recipients, district, bails, approved_by_name):
+    """
+    Same message logic/templates as send_bail_whatsapp_notification below
+    (single -> bail_approved, multiple -> bail_bulk_approved), but sent to an
+    explicit `recipients` list (e.g. the accused's own थाना contact from
+    thana_master) instead of doing the district admin/super_admin DB lookup.
+    Used to notify the accused's thana on bail approval, both single and
+    bulk, separately from — and in addition to — the district admin alert.
+
+    recipients: list of dicts with at least a 'contact' phone number, e.g.
+      [{'name': 'थाना कोतवाली', 'contact': '98XXXXXXXX'}]
+    """
+    if not bails or not recipients:
+        return {"sent": 0, "failed": 0}
+    if not is_whatsapp_ready():
+        logger.info("[WhatsApp] Skipping थाना notification — WhatsApp not configured.")
+        return {"sent": 0, "failed": 0, "skipped": "not_configured"}
+
+    sent, failed = 0, 0
+    if len(bails) == 1:
+        b = bails[0]
+        for r in recipients:
+            if not r.get('contact'):
+                continue
+            result = notify_bail_approved(
+                r['contact'], b.get('accused_name'), b.get('fir_label'),
+                b.get('bail_type'), b.get('bail_start'), b.get('bail_end'),
+                approved_by_name,
+            )
+            if result.get("success"):
+                sent += 1
+            else:
+                failed += 1
+                logger.error(
+                    f"[WhatsApp] थाना notify failed ({r.get('name')}, {r.get('contact')}): "
+                    f"{result.get('error')}"
+                )
+    else:
+        details_list = format_bulk_bail_details(bails)
+        for r in recipients:
+            if not r.get('contact'):
+                continue
+            result = notify_bail_bulk_approved(
+                r['contact'], district, len(bails), approved_by_name, details_list,
+            )
+            if result.get("success"):
+                sent += 1
+            else:
+                failed += 1
+                logger.error(
+                    f"[WhatsApp] थाना bulk notify failed ({r.get('name')}, {r.get('contact')}): "
+                    f"{result.get('error')}"
+                )
+
+    logger.info(
+        f"[WhatsApp] थाना notification district={district!r} bails={len(bails)} "
+        f"✓{sent} ✗{failed}"
+    )
+    return {"sent": sent, "failed": failed}
+
+
 # ── High-level API used by accused_common.py / bail_bulk.py ──────────────────
 
 def send_bail_whatsapp_notification(district, bails, approved_by_name, approved_by_id=None):

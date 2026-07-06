@@ -834,7 +834,8 @@ def approve_accused_bail(accused_id: int, role='admin'):
             bail_type=bail_type, bail_start=bail_start, bail_end=bail_end,
             bail_remark=bail_remark, bail_rating=bail_rating,
             approved_by_name=session.get('name'), approved_by_id=_uid(),
-            mail_instance=mail
+            mail_instance=mail,
+            thana=fir_row['thana'] if fir_row else None,
         )
 
         success_msg = 'जमानत सफलतापूर्वक स्वीकृत। जिले के अधिकारियों को सूचित किया गया।'

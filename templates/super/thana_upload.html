@@ -1,0 +1,54 @@
+{% extends "shared/base.html" %}
+{% block title %}बल्क अपलोड थाना{% endblock %}
+{% block page_title %}बल्क अपलोड थाना सूची (Excel){% endblock %}
+{% block sidebar_nav %}
+{% include "shared/super_sidebar.html" %}
+{% endblock %}
+{% block content %}
+<div style="max-width:640px;margin:0 auto">
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-file-excel" style="color:var(--success)"></i> बल्क अपलोड थाना सूची</span>
+    <a href="{{ url_for('super.thana_list') }}" class="btn btn-outline btn-sm"><i class="fas fa-arrow-left"></i> वापस</a>
+  </div>
+  <div class="card-body">
+    <div style="background:rgba(26,115,232,.06);border:1px solid rgba(26,115,232,.15);border-radius:10px;padding:16px;margin-bottom:20px;font-size:.83rem">
+      <div style="font-weight:700;margin-bottom:8px"><i class="fas fa-circle-info" style="color:var(--primary)"></i> आवश्यक Excel कॉलम (पहली पंक्ति = हेडर)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        {% for col in ['thana_name','contact','email'] %}
+        <span style="background:var(--primary);color:#fff;padding:2px 8px;border-radius:4px;font-size:.75rem;font-weight:600">{{ col }}</span>
+        {% endfor %}
+      </div>
+      <div style="margin-top:10px;color:var(--text-muted)">
+        • जिला स्वतः आपके जिले ({{ session.district }}) पर सेट होगा।<br>
+        • संपर्क नंबर या ईमेल में से कम से कम एक आवश्यक है।<br>
+        • यदि थाना पहले से मौजूद है, तो उसका संपर्क/ईमेल अपडेट हो जाएगा (डुप्लिकेट नहीं बनेगा)।
+      </div>
+    </div>
+    <a href="{{ url_for('super.thana_download_sample') }}" class="btn btn-outline" style="margin-bottom:20px">
+      <i class="fas fa-download"></i> Sample Excel डाउनलोड करें
+    </a>
+    <form method="POST" enctype="multipart/form-data">
+      <div class="form-group">
+        <label class="form-label">अपलोड करें Excel File <span class="required">*</span></label>
+        <div class="upload-area" onclick="document.getElementById('excelFile').click()" id="dropArea">
+          <i class="fas fa-file-excel" style="color:var(--success)"></i>
+          <div style="margin-top:8px;font-weight:600">Click to select .xlsx / .xls file</div>
+          <div style="font-size:.78rem;margin-top:4px" id="fileनाम">or drag and drop here</div>
+        </div>
+        <input type="file" name="excel_file" id="excelFile" accept=".xlsx,.xls" style="display:none" required onchange="document.getElementById('fileनाम').textContent=this.files[0]?.name||'No file selected'">
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> अपलोड करें & थाना जोड़ें</button>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const da=document.getElementById('dropArea');
+da.addEventListener('dragover',e=>{e.preventDefault();da.classList.add('dragover');});
+da.addEventListener('dragleave',()=>da.classList.remove('dragover'));
+da.addEventListener('drop',e=>{e.preventDefault();da.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f){document.getElementById('excelFile').files=e.dataTransfer.files;document.getElementById('fileनाम').textContent=f.name;}});
+</script>
+{% endblock %}

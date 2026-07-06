@@ -34,6 +34,12 @@
 <a href="{{ url_for('super.bail_pending_photos') }}" class="nav-item {% if request.endpoint=='super.bail_pending_photos' %}active{% endif %}">
   <i class="fas fa-camera nav-icon"></i> फ़ोटो/दस्तावेज़ लंबित
 </a>
+
+<div class="nav-section-title">थाना निर्देशिका</div>
+<a href="{{ url_for('super.thana_list') }}" class="nav-item {% if request.endpoint in ['super.thana_list','super.thana_upload'] %}active{% endif %}">
+  <i class="fas fa-building-shield nav-icon"></i> थाना सूची
+</a>
+
 <a href="{{ url_for('super.notifications') }}" class="nav-item {% if request.endpoint=='super.notifications' %}active{% endif %}">
   <i class="fas fa-bell nav-icon"></i> सूचनाएं
 </a>

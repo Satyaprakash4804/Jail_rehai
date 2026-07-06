@@ -774,7 +774,8 @@ def confirm_batch(batch_id: int, district: str, confirmed_row_ids: list, resolve
         cursor.execute("UPDATE bail_excel_row SET created_bail_id=%s WHERE id=%s", (bail_id, r['id']))
 
         created.append({'row': r['row_no'], 'accused_id': accused_id,
-                         'name': r['parsed_name'], 'bail_id': bail_id})
+                         'name': r['parsed_name'], 'bail_id': bail_id,
+                         'thana': r.get('thana_col')})
 
     cursor.execute("""
         UPDATE bail_excel_batch SET status='confirmed', confirmed_by=%s, confirmed_at=NOW() WHERE id=%s
@@ -806,6 +807,8 @@ def confirm_batch(batch_id: int, district: str, confirmed_row_ids: list, resolve
                 approved_by_name=f'Batch #{batch_id}',
                 approved_by_id=resolved_by_uid,
                 mail_instance=_mail,
+                thana=item.get('thana'),
+                notify_thana=False,
             )
         except Exception as _notif_err:
             import logging
@@ -849,6 +852,87 @@ def confirm_batch(batch_id: int, district: str, confirmed_row_ids: list, resolve
             import logging
             logging.getLogger(__name__).error(
                 f"[WhatsApp] Batch #{batch_id} consolidated notify error: {_wa_err}"
+            )
+
+    # ── थाना notification: ONE consolidated message per थाना ─────────────────
+    # Group every accused approved in this batch by their own थाना (from the
+    # Excel row), then send each थाना exactly one WhatsApp message (single
+    # template if it only has one accused, bulk template otherwise) + one
+    # email — using the super admin's uploaded thana_master directory for
+    # this district. A थाना with no entry on file yet is silently skipped.
+    if created:
+        try:
+            from thana_service import get_thana_contact
+            from whatsapp_service import send_bail_whatsapp_to_recipients
+            try:
+                from run import mail as _thana_mail
+            except Exception:
+                _thana_mail = None
+
+            groups = {}
+            for item in created:
+                t = (item.get('thana') or '').strip()
+                if not t:
+                    continue
+                groups.setdefault(t, []).append(item)
+
+            for thana_name, items in groups.items():
+                thana_row = get_thana_contact(district, thana_name)
+                if not thana_row:
+                    continue
+
+                group_bails = [{
+                    "accused_name": it['name'],
+                    "fir_label": f"अभियुक्त ID:{it['accused_id']}",
+                    "bail_type": "temporary",
+                    "bail_start": None,
+                    "bail_end": None,
+                    "bail_remark": "Excel बल्क जमानत स्वीकृति",
+                    "bail_rating": 0,
+                } for it in items]
+
+                if thana_row.get('contact'):
+                    try:
+                        t_result = send_bail_whatsapp_to_recipients(
+                            recipients=[{'name': thana_row['thana_name'], 'contact': thana_row['contact']}],
+                            district=district,
+                            bails=group_bails,
+                            approved_by_name=f'Batch #{batch_id} ({resolved_by_uid})',
+                        )
+                        import logging
+                        logging.getLogger(__name__).info(
+                            f"[WhatsApp] Batch #{batch_id} थाना '{thana_name}' notify: "
+                            f"✓{t_result.get('sent', 0)} ✗{t_result.get('failed', 0)}"
+                        )
+                    except Exception as _t_wa_err:
+                        import logging
+                        logging.getLogger(__name__).error(
+                            f"[WhatsApp] Batch #{batch_id} थाना '{thana_name}' notify error: {_t_wa_err}"
+                        )
+
+                if _thana_mail and thana_row.get('email'):
+                    try:
+                        from flask_mail import Message
+                        names = '\n'.join(f"{i+1}. {b['accused_name']}" for i, b in enumerate(group_bails))
+                        subj = f"[Jail Rehai] {len(items)} जमानत स्वीकृत — {thana_name} ({district})"
+                        body_txt = (
+                            f"थाना {thana_name},\n\n"
+                            f"{district} में आपके क्षेत्र के {len(items)} अभियुक्तों की जमानत "
+                            f"Excel बल्क अपलोड (Batch #{batch_id}) के माध्यम से स्वीकृत हुई है:\n\n"
+                            f"{names}\n\n"
+                            f"— Jail Rehai System"
+                        )
+                        msg = Message(subject=subj, recipients=[thana_row['email']], body=body_txt)
+                        _thana_mail.send(msg)
+                    except Exception as _t_mail_err:
+                        import logging
+                        logging.getLogger(__name__).error(
+                            f"[Thana] Batch #{batch_id} थाना '{thana_name}' email error: {_t_mail_err}"
+                        )
+        except Exception as _thana_err:
+            import logging
+            logging.getLogger(__name__).error(
+                f"[Thana] Batch #{batch_id} consolidated notify error: {_thana_err}"
             )
 
     return {'created': created, 'skipped': skipped}

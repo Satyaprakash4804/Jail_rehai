@@ -1,0 +1,135 @@
+{% extends "shared/base.html" %}
+{% block title %}थाना सूची{% endblock %}
+{% block page_title %}थाना निर्देशिका (जमानत सूचना हेतु){% endblock %}
+{% block sidebar_nav %}
+{% include "shared/super_sidebar.html" %}
+{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:16px">
+  <div style="padding:16px 20px;font-size:.83rem;color:var(--text-muted)">
+    <i class="fas fa-circle-info" style="color:var(--primary)"></i>
+    यहाँ अपने जिले के हर थाने का नाम, संपर्क नंबर और ईमेल दर्ज करें। जब भी किसी अभियुक्त की जमानत
+    स्वीकृत होगी (एकल या Excel बल्क दोनों में), उस अभियुक्त की FIR वाले थाने को यहीं से WhatsApp
+    व ईमेल सूचना स्वतः भेजी जाएगी।
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title"><i class="fas fa-building-shield" style="color:var(--primary)"></i> थाना सूची — {{ session.district }} ({{ thanas|length }})</span>
+    <div style="display:flex;gap:8px">
+      <a href="{{ url_for('super.thana_download_sample') }}" class="btn btn-outline btn-sm"><i class="fas fa-download"></i> Sample Excel</a>
+      <a href="{{ url_for('super.thana_upload') }}" class="btn btn-outline btn-sm"><i class="fas fa-file-excel"></i> बल्क अपलोड</a>
+      <button type="button" class="btn btn-primary btn-sm" onclick="openAddModal()"><i class="fas fa-plus"></i> थाना जोड़ें</button>
+    </div>
+  </div>
+  <div class="card-body" style="padding-bottom:0">
+    <form method="GET" class="search-bar" style="margin-bottom:16px">
+      <div class="search-input-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" name="search" class="form-control" placeholder="थाना नाम, संपर्क या ईमेल से खोजें..." value="{{ search }}">
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
+      {% if search %}<a href="{{ url_for('super.thana_list') }}" class="btn btn-outline">साफ़ करें</a>{% endif %}
+    </form>
+  </div>
+  <div class="table-wrap">
+    {% if thanas %}
+    <table>
+      <thead>
+        <tr><th>#</th><th>थाना नाम</th><th>संपर्क नंबर</th><th>ईमेल</th><th>Status</th><th>कार्रवाई</th></tr>
+      </thead>
+      <tbody>
+        {% for t in thanas %}
+        <tr>
+          <td style="color:var(--text-muted)">{{ loop.index }}</td>
+          <td><strong>{{ t.thana_name }}</strong></td>
+          <td>{{ t.contact or '—' }}</td>
+          <td style="font-size:.78rem">{{ t.email or '—' }}</td>
+          <td><span class="badge {% if t.is_active %}badge-active{% else %}badge-revoked{% endif %}">{% if t.is_active %}Active{% else %}Inactive{% endif %}</span></td>
+          <td style="white-space:nowrap">
+            <button type="button" class="btn btn-xs btn-outline"
+                    onclick="openEditModal({{ t.id }}, '{{ t.thana_name|e }}', '{{ t.contact or ''|e }}', '{{ t.email or ''|e }}')">
+              <i class="fas fa-pen"></i>
+            </button>
+            <form method="POST" action="{{ url_for('super.thana_toggle', thana_id=t.id) }}" style="display:inline">
+              <button class="btn btn-xs {% if t.is_active %}btn-danger{% else %}btn-success{% endif %}"
+                      onclick="return confirm('{% if t.is_active %}निष्क्रिय{% else %}सक्रिय{% endif %} करें {{ t.thana_name }}?')">
+                {% if t.is_active %}<i class="fas fa-ban"></i>{% else %}<i class="fas fa-rotate-left"></i>{% endif %}
+              </button>
+            </form>
+            <form method="POST" action="{{ url_for('super.thana_delete', thana_id=t.id) }}" style="display:inline">
+              <button class="btn btn-xs btn-danger" onclick="return confirm('थाना \'{{ t.thana_name }}\' स्थायी रूप से हटाएं?')">
+                <i class="fas fa-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="fas fa-building-shield"></i>
+      <p>अभी कोई थाना दर्ज नहीं है। <a href="javascript:void(0)" onclick="openAddModal()">थाना जोड़ें</a> या Excel से बल्क अपलोड करें।</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Add/Edit थाना modal ─────────────────────────────────────────────── -->
+<div id="thanaModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:12px;max-width:420px;width:92%;max-height:90vh;overflow-y:auto;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 style="font-size:1rem;font-weight:700" id="thanaModalTitle">थाना जोड़ें</h3>
+      <button type="button" onclick="closeThanaModal()" class="btn btn-outline btn-xs"><i class="fas fa-xmark"></i></button>
+    </div>
+    <form method="POST" id="thanaForm">
+      <div class="form-group">
+        <label class="form-label">थाना नाम <span class="required">*</span></label>
+        <input type="text" name="thana_name" id="thanaNameInput" class="form-control" required placeholder="जैसे: थाना कोतवाली">
+      </div>
+      <div class="form-group">
+        <label class="form-label">संपर्क नंबर (WhatsApp)</label>
+        <input type="text" name="contact" id="thanaContactInput" class="form-control" placeholder="98XXXXXXXX">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ईमेल</label>
+        <input type="email" name="email" id="thanaEmailInput" class="form-control" placeholder="thana@example.com">
+      </div>
+      <div class="form-text" style="margin-bottom:10px"><i class="fas fa-circle-info"></i> संपर्क नंबर या ईमेल में से कम से कम एक आवश्यक है।</div>
+      <div style="display:flex;gap:8px">
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-check"></i> सहेजें</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeThanaModal()">रद्द करें</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ADD_URL  = "{{ url_for('super.thana_add') }}";
+const EDIT_URL_TMPL = "{{ url_for('super.thana_edit', thana_id=0) }}";
+
+function openAddModal() {
+  document.getElementById('thanaModalTitle').textContent = 'थाना जोड़ें';
+  document.getElementById('thanaForm').action = ADD_URL;
+  document.getElementById('thanaNameInput').value = '';
+  document.getElementById('thanaContactInput').value = '';
+  document.getElementById('thanaEmailInput').value = '';
+  document.getElementById('thanaModalOverlay').style.display = 'flex';
+}
+function openEditModal(id, name, contact, email) {
+  document.getElementById('thanaModalTitle').textContent = 'थाना संपादित करें — ' + name;
+  document.getElementById('thanaForm').action = EDIT_URL_TMPL.replace('/0/edit', '/' + id + '/edit');
+  document.getElementById('thanaNameInput').value = name;
+  document.getElementById('thanaContactInput').value = contact;
+  document.getElementById('thanaEmailInput').value = email;
+  document.getElementById('thanaModalOverlay').style.display = 'flex';
+}
+function closeThanaModal() {
+  document.getElementById('thanaModalOverlay').style.display = 'none';
+}
+</script>
+{% endblock %}

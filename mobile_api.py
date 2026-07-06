@@ -666,7 +666,8 @@ def accused_approve_bail(accused_id):
             fir_label=f"S/o {accused['fathers_name']} | FIR {fir_label}",
             bail_type=bail_type, bail_start=bail_start, bail_end=bail_end,
             bail_remark=bail_remark, bail_rating=bail_rating,
-            approved_by_name=session.get('name'), approved_by_id=uid, mail_instance=mail)
+            approved_by_name=session.get('name'), approved_by_id=uid, mail_instance=mail,
+            thana=fir_row['thana'] if fir_row else None)
     except Exception as e:
         logger.error(f"send_bail_notification error: {e}")
 

@@ -193,7 +193,7 @@ def paginate_query(cursor, base_query, params, page, per_page=20):
 def send_bail_notification(district, accused_name, fir_label,
                            bail_type, bail_start, bail_end, bail_remark,
                            bail_rating, approved_by_name, approved_by_id,
-                           mail_instance=None):
+                           mail_instance=None, thana=None, notify_thana=True):
     """
     Notify everyone who needs to know a bail was APPROVED (स्वीकृत) for an
     Accused (अभियुक्त) — never "granted" by an admin, since only a court
@@ -201,7 +201,11 @@ def send_bail_notification(district, accused_name, fir_label,
 
     Recipients: every active admin AND every active super_admin belonging
     to the district the FIR/arrest was recorded in (so both the district's
-    admins and their super admins are notified in one call).
+    admins and their super admins are notified in one call), PLUS — if
+    `thana` (the accused's own थाना, from the FIR) is given and a matching
+    row exists in thana_master for this district — that थाना's own
+    WhatsApp/email contact, looked up from the super admin's uploaded थाना
+    list.
 
     Channels: in-app notification (MySQL) + FCM push + optional email.
     The 'click_url' in push_data is role-aware so clicking the OS
@@ -342,6 +346,67 @@ def send_bail_notification(district, accused_name, fir_label,
                     mail_instance.send(msg)
                 except Exception as mail_err:
                     logger.error(f"Bail-approval email error: {mail_err}")
+
+        # ── थाना notification (WhatsApp + email) ─────────────────────────────
+        # Looks up the accused's own थाना (from the FIR) in the super admin's
+        # uploaded thana_master list for this district, and alerts that थाना
+        # directly — separate from, and in addition to, the district admin
+        # alert above. Silently no-ops if the super admin hasn't uploaded a
+        # matching थाना entry yet.
+        if thana and notify_thana:
+            try:
+                from thana_service import get_thana_contact
+                thana_row = get_thana_contact(district, thana)
+            except Exception as thana_lookup_err:
+                thana_row = None
+                logger.error(f"[Thana] lookup error: {thana_lookup_err}")
+
+            if thana_row:
+                if thana_row.get('contact'):
+                    try:
+                        from whatsapp_service import send_bail_whatsapp_to_recipients
+                        thana_wa_result = send_bail_whatsapp_to_recipients(
+                            recipients=[{'name': thana_row['thana_name'], 'contact': thana_row['contact']}],
+                            district=district,
+                            bails=[{
+                                "accused_name": accused_name,
+                                "fir_label": fir_label,
+                                "bail_type": bail_type,
+                                "bail_start": bail_start,
+                                "bail_end": bail_end_display,
+                                "bail_remark": bail_remark,
+                                "bail_rating": bail_rating,
+                            }],
+                            approved_by_name=approved_by_name,
+                        )
+                        logger.info(
+                            f"[WhatsApp] थाना '{thana_row['thana_name']}' notify for "
+                            f"{accused_name}: ✓{thana_wa_result.get('sent', 0)} "
+                            f"✗{thana_wa_result.get('failed', 0)}"
+                        )
+                    except Exception as thana_wa_err:
+                        logger.error(f"[WhatsApp] थाना notify error: {thana_wa_err}")
+
+                if mail_instance and thana_row.get('email'):
+                    try:
+                        subj = f"[Jail Rehai] Bail Approved — {accused_name} ({district})"
+                        body_txt = (
+                            f"थाना {thana_row['thana_name']},\n\n"
+                            f"आपके क्षेत्र के एक अभियुक्त की जमानत स्वीकृत हुई है।\n\n"
+                            f"Accused  : {accused_name}\n"
+                            f"FIR      : {fir_label}\n"
+                            f"Type     : {bail_type.title()}\n"
+                            f"Start    : {bail_start}\n"
+                            f"End      : {bail_end_display}\n"
+                            f"Risk     : {rating_text}\n"
+                            f"Remark   : {bail_remark or '—'}\n"
+                            f"Approved : {approved_by_name}\n\n"
+                            f"— Jail Rehai System"
+                        )
+                        msg = Message(subject=subj, recipients=[thana_row['email']], body=body_txt)
+                        mail_instance.send(msg)
+                    except Exception as thana_mail_err:
+                        logger.error(f"[Thana] email error: {thana_mail_err}")
 
     except Exception as e:
         logger.error(f"send_bail_notification error: {e}")
