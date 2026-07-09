@@ -125,17 +125,13 @@
           {% endif %}
         </div>
         {% endif %}
-        <form method="POST" action="{{ url_for('super.revoke_bail_accused', accused_id=accused.id) }}" onsubmit="return confirm('क्या आप वाकई इस जमानत को रद्द करना चाहते हैं?');" style="display:flex;gap:8px;flex-wrap:wrap">
-          <input type="text" name="revoke_reason" class="form-control" placeholder="रद्द करने का कारण (वैकल्पिक)" style="flex:1;min-width:200px">
-          <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-ban"></i> जमानत रद्द करें</button>
-        </form>
+        <p style="font-size:.82rem;color:var(--text-muted)">
+          <i class="fas fa-circle-info"></i> जमानत रद्द करना केवल जिला Admin द्वारा किया जा सकता है।
+        </p>
         {% elif is_arrested %}
         <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:10px">
-          यह अभियुक्त {{ arrest_firs|length }} FIR में गिरफ़्तार दर्शाया गया है। जमानत केवल गिरफ़्तार अभियुक्तों के लिए स्वीकृत की जा सकती है।
+          यह अभियुक्त {{ arrest_firs|length }} FIR में गिरफ़्तार दर्शाया गया है। जमानत स्वीकृत करना केवल जिला Admin द्वारा किया जा सकता है — Super Admin केवल देख सकते हैं।
         </p>
-        <a href="{{ url_for('super.approve_bail', accused_id=accused.id) }}" class="btn btn-primary btn-sm">
-          <i class="fas fa-scale-balanced"></i> जमानत स्वीकृत करें
-        </a>
         {% else %}
         <p style="font-size:.85rem;color:var(--text-muted)">यह अभियुक्त किसी FIR में गिरफ़्तार नहीं है, इसलिए जमानत लागू नहीं होती।</p>
         {% endif %}

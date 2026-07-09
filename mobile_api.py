@@ -335,6 +335,8 @@ def dashboard():
         cursor.execute("SELECT COUNT(*) as c FROM users WHERE created_by=%s AND role='admin' AND is_active=1",
                        (session['user_id'],))
         stats['admins'] = cursor.fetchone()['c']
+        cursor.execute("SELECT COUNT(*) as c FROM thana_master WHERE district=%s AND is_active=1", (district,))
+        stats['thanas'] = cursor.fetchone()['c']
 
     cursor.close(); conn.close()
     alerts = rows_iso(get_accused_bail_alerts(district))
@@ -504,7 +506,7 @@ def accused_upload_photo(accused_id):
 
 
 @mobile_bp.route('/accused/<int:accused_id>/approve-bail', methods=['POST'])
-@role_required('admin', 'super_admin')
+@role_required('admin')  # बल्क Excel के अलावा, एकल जमानत स्वीकृति अब केवल जिला Admin कर सकता है
 def accused_approve_bail(accused_id):
     """
     multipart/form-data:
@@ -676,7 +678,7 @@ def accused_approve_bail(accused_id):
 
 
 @mobile_bp.route('/accused/<int:accused_id>/revoke-bail', methods=['POST'])
-@role_required('admin', 'super_admin')
+@role_required('admin')  # जमानत रद्द करना भी केवल जिला Admin का कार्य
 def accused_revoke_bail(accused_id):
     data = request.get_json(silent=True) or request.form
     revoke_reason = (data.get('revoke_reason') or '').strip()
@@ -1060,7 +1062,7 @@ def bail_pending_photos():
 
 
 @mobile_bp.route('/bail-pending-photos/<int:bail_id>/complete', methods=['POST'])
-@role_required('admin', 'super_admin')
+@role_required('admin')  # फ़ोटो/दस्तावेज़ पूर्ण करना केवल जिला Admin का कार्य; super_admin केवल list देख सकता है
 def bail_complete_photo(bail_id):
     import base64
     district = session.get('district')
@@ -1325,3 +1327,112 @@ def super_download_admin_sample():
                       "rahul@example.com", "Police Station Mirzapur", "Admin@123"])
     buf = io.BytesIO(output.getvalue().encode('utf-8'))
     return send_file(buf, mimetype='text/csv', as_attachment=True, download_name='admin_sample.csv')
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# थाना (POLICE STATION) DIRECTORY — mirrors web super_admin.py /thana routes.
+# WhatsApp/email bail-approval notifications are routed through this list.
+# ══════════════════════════════════════════════════════════════════════════
+
+@mobile_bp.route('/super/thana')
+@role_required('super_admin')
+def super_thana_list():
+    from thana_service import list_thanas
+    search = request.args.get('search', '').strip()
+    thanas = list_thanas(session.get('district'), search)
+    return ok({'thanas': rows_iso(thanas)})
+
+
+@mobile_bp.route('/super/thana/add', methods=['POST'])
+@role_required('super_admin')
+def super_thana_add():
+    from thana_service import add_thana
+    data = request.get_json(silent=True) or request.form
+    okd, error = add_thana(
+        session.get('district'),
+        (data.get('thana_name') or '').strip(),
+        (data.get('contact') or '').strip(),
+        (data.get('email') or '').strip(),
+        session['user_id'],
+    )
+    if not okd:
+        return err(error or 'थाना जोड़ने में त्रुटि।', 400)
+    log_activity(session['user_id'], session['role'], f"Added/updated थाना {data.get('thana_name')}",
+                 ip=request.remote_addr)
+    return ok()
+
+
+@mobile_bp.route('/super/thana/<int:thana_id>/edit', methods=['POST'])
+@role_required('super_admin')
+def super_thana_edit(thana_id):
+    from thana_service import update_thana
+    data = request.get_json(silent=True) or request.form
+    okd, error = update_thana(
+        thana_id, session.get('district'),
+        (data.get('thana_name') or '').strip(),
+        (data.get('contact') or '').strip(),
+        (data.get('email') or '').strip(),
+    )
+    if not okd:
+        return err(error or 'अपडेट करने में त्रुटि।', 400)
+    return ok()
+
+
+@mobile_bp.route('/super/thana/<int:thana_id>/toggle', methods=['POST'])
+@role_required('super_admin')
+def super_thana_toggle(thana_id):
+    from thana_service import toggle_thana
+    if not toggle_thana(thana_id, session.get('district')):
+        return err('थाना नहीं मिला।', 404)
+    return ok()
+
+
+@mobile_bp.route('/super/thana/<int:thana_id>/delete', methods=['POST'])
+@role_required('super_admin')
+def super_thana_delete(thana_id):
+    from thana_service import delete_thana
+    if not delete_thana(thana_id, session.get('district')):
+        return err('थाना नहीं मिला।', 404)
+    log_activity(session['user_id'], session['role'], f"Deleted थाना #{thana_id}", ip=request.remote_addr)
+    return ok()
+
+
+@mobile_bp.route('/super/thana/upload', methods=['POST'])
+@role_required('super_admin')
+def super_thana_upload():
+    from thana_service import bulk_upload_thanas_from_excel
+    file = request.files.get('excel_file')
+    if not file or not file.filename:
+        return err('कृपया Excel फ़ाइल चुनें।', 400)
+    fname = file.filename.lower()
+    if not (fname.endswith('.xlsx') or fname.endswith('.xls')):
+        return err('केवल .xlsx या .xls फ़ाइल अपलोड करें।', 400)
+    result = bulk_upload_thanas_from_excel(session.get('district'), file, session['user_id'])
+    log_activity(session['user_id'], session['role'],
+                 f"Bulk uploaded {result['success']} थाना", ip=request.remote_addr)
+    return ok({'success_count': result['success'], 'failed': result['failed']})
+
+
+@mobile_bp.route('/super/thana/download-sample')
+@role_required('super_admin')
+def super_thana_download_sample():
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'थाना सूची'
+    ws.append(['thana_name', 'contact', 'email'])
+    header_fill = PatternFill("solid", fgColor="1a73e8")
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color="FFFFFF", size=11)
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center', wrap_text=True)
+    ws.append(['थाना कोतवाली', '9876543210', 'kotwali@example.com'])
+    ws.append(['थाना देहात', '9876500000', 'dehat.thana@example.com'])
+    for i, w in enumerate([25, 18, 30], 1):
+        ws.column_dimensions[chr(64 + i)].width = w
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(buf, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                      as_attachment=True, download_name='thana_upload_sample.xlsx')

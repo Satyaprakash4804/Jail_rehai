@@ -456,14 +456,19 @@ def upload_accused_photo(accused_id):
 @super_bp.route('/accused/<int:accused_id>/approve-bail', methods=['GET', 'POST'])
 @super_required
 def approve_bail(accused_id):
-    """जमानत स्वीकृत करें — केवल गिरफ़्तार अभियुक्तों के लिए, केवल उसी गिरफ़्तारी FIR के आधार पर"""
-    return approve_accused_bail(accused_id, role='super')
+    """
+    जमानत स्वीकृत करना अब केवल जिला Admin का कार्य है — Super Admin की भूमिका
+    निगरानी (view), Admin/FIR/Accused निर्माण, और Excel बल्क अपलोड तक सीमित है।
+    """
+    flash('जमानत स्वीकृत करना केवल जिला Admin द्वारा किया जा सकता है। Super Admin केवल देख सकते हैं।', 'danger')
+    return redirect(url_for('super.accused_detail', accused_id=accused_id))
 
 
 @super_bp.route('/accused/<int:accused_id>/revoke-bail', methods=['POST'])
 @super_required
 def revoke_bail_accused(accused_id):
-    return revoke_accused_bail(accused_id, role='super')
+    flash('जमानत रद्द करना केवल जिला Admin द्वारा किया जा सकता है।', 'danger')
+    return redirect(url_for('super.accused_detail', accused_id=accused_id))
 
 
 @super_bp.route('/bailed-accused')
@@ -515,7 +520,8 @@ def bail_pending_photos():
 @super_bp.route('/bail-pending-photos/<int:bail_id>/complete', methods=['POST'])
 @super_required
 def bail_complete_photo(bail_id):
-    return handle_complete_photo(bail_id, role='super')
+    flash('फ़ोटो/दस्तावेज़ पूर्ण करना केवल जिला Admin द्वारा किया जा सकता है। Super Admin केवल देख सकते हैं।', 'danger')
+    return redirect(url_for('super.bail_pending_photos'))
 
 
 @super_bp.route('/fir')

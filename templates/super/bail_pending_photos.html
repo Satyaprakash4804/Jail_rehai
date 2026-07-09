@@ -37,9 +37,13 @@
           <td style="font-size:.78rem">{{ p.release_date or '—' }}</td>
           <td style="font-size:.76rem;color:var(--text-muted)">{{ p.approved_at.strftime('%d-%m-%Y') if p.approved_at else '—' }}</td>
           <td>
+            {% if session.role == 'admin' %}
             <button type="button" class="btn btn-xs btn-primary" onclick="openCompleteModal({{ p.bail_id }}, '{{ p.name|e }}')">
               <i class="fas fa-camera"></i> फ़ोटो/दस्तावेज़ जोड़ें
             </button>
+            {% else %}
+            <span style="font-size:.72rem;color:var(--text-muted)"><i class="fas fa-eye"></i> केवल देखें — यह कार्य Admin द्वारा किया जाएगा</span>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
