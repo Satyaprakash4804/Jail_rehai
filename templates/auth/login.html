@@ -2,7 +2,11 @@
 <html lang="hi" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d3b66">
+<meta name="description" content="जेल रिहाई — उत्तर प्रदेश पुलिस अभियुक्त एवं अपराध प्रबंधन प्रणाली, सुरक्षित लॉगिन पोर्टल">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
 <title>Login | Jail Rehai — उत्तर प्रदेश पुलिस अपराध प्रबंधन प्रणाली</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -10,69 +14,126 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
 :root{
---primary:#0d3b66;--primary2:#145088;--gold:#c99a2e;--gold-dark:#a67c1e;
---success:#1e8e4f;--danger:#c62828;
---bg:#eef1f6;--card:rgba(255,255,255,.92);--text:#16233a;--muted:#5b6a82;
---border:rgba(13,59,102,.14);--input:#fff;--shadow:0 24px 60px rgba(10,38,71,.18);
---primary-rgb:13,59,102;
+  --primary:#0d3b66;--primary2:#145088;--gold:#c99a2e;--gold-dark:#a67c1e;
+  --success:#1e8e4f;--danger:#c62828;
+  --bg:#eef1f6;--card:rgba(255,255,255,.94);--text:#16233a;--muted:#5b6a82;
+  --border:rgba(13,59,102,.14);--input:#fff;--shadow:0 24px 60px rgba(10,38,71,.18);
+  --primary-rgb:13,59,102;
+  --radius-lg:22px;--radius-md:13px;
+  --safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);
 }
 [data-theme="dark"]{
---bg:#080d16;--card:rgba(19,26,40,.94);--text:#e7ecf5;--muted:#93a2ba;
---border:rgba(255,255,255,.08);--input:#182238;--shadow:0 24px 60px rgba(0,0,0,.55);
+  --bg:#080d16;--card:rgba(19,26,40,.95);--text:#e7ecf5;--muted:#93a2ba;
+  --border:rgba(255,255,255,.09);--input:#182238;--shadow:0 24px 60px rgba(0,0,0,.6);
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{
-font-family:'Noto Sans Devanagari','Inter',sans-serif;color:var(--text);
-background:
-  radial-gradient(circle at 15% 10%, rgba(13,59,102,.10), transparent 45%),
-  radial-gradient(circle at 85% 90%, rgba(201,154,46,.10), transparent 45%),
-  var(--bg);
-min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 20px;overflow:hidden;
+  font-family:'Noto Sans Devanagari','Inter',sans-serif;color:var(--text);
+  background:
+    radial-gradient(circle at 15% 10%, rgba(13,59,102,.10), transparent 45%),
+    radial-gradient(circle at 85% 90%, rgba(201,154,46,.10), transparent 45%),
+    var(--bg);
+  min-height:100svh;display:flex;align-items:center;justify-content:center;
+  padding:calc(24px + var(--safe-t)) 18px calc(24px + var(--safe-b));
+  transition:background-color .25s ease, color .25s ease;
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;scroll-behavior:auto !important}
 }
 .gov-strip{position:fixed;top:0;left:0;width:100%;height:4px;background:linear-gradient(90deg,#FF9933 0 33.33%,#ffffff 33.33% 66.66%,#138808 66.66% 100%);z-index:20}
-body:before,body:after{content:"";position:fixed;border-radius:50%;filter:blur(90px);z-index:-1}
+body:before,body:after{content:"";position:fixed;border-radius:50%;filter:blur(90px);z-index:-1;pointer-events:none}
 body:before{width:380px;height:380px;background:rgba(13,59,102,.16);left:-120px;top:-90px}
 body:after{width:340px;height:340px;background:rgba(201,154,46,.14);right:-90px;bottom:-110px}
 
-.theme{position:fixed;top:22px;right:20px;width:42px;height:42px;border:none;border-radius:50%;background:var(--card);backdrop-filter:blur(18px);box-shadow:var(--shadow);cursor:pointer;color:var(--text);z-index:10}
+.theme{
+  position:fixed;top:calc(18px + var(--safe-t));right:18px;width:42px;height:42px;border:none;
+  border-radius:50%;background:var(--card);backdrop-filter:blur(18px);box-shadow:var(--shadow);
+  cursor:pointer;color:var(--text);z-index:10;display:flex;align-items:center;justify-content:center;
+  font-size:16px;transition:transform .18s ease;
+}
+.theme:hover{transform:translateY(-2px) scale(1.04)}
+.theme:focus-visible{outline:2.5px solid var(--gold);outline-offset:2px}
 
-.wrap{width:100%;max-width:430px}
+.wrap{width:100%;max-width:430px;position:relative;z-index:1}
 .header{text-align:center;margin-bottom:18px}
 .gov-line{font-size:.68rem;font-weight:700;letter-spacing:1.4px;color:var(--gold-dark);text-transform:uppercase;margin-bottom:10px}
 .gov-line span{color:var(--muted);font-weight:600}
-.logo{width:80px;height:80px;border-radius:50%;background:linear-gradient(150deg,var(--primary),var(--primary2));margin:auto;display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;box-shadow:0 16px 36px rgba(13,59,102,.35);border:3px solid rgba(201,154,46,.55)}
+.logo{
+  width:80px;height:80px;border-radius:50%;background:linear-gradient(150deg,var(--primary),var(--primary2));
+  margin:auto;display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;
+  box-shadow:0 16px 36px rgba(13,59,102,.35);border:3px solid rgba(201,154,46,.55);
+}
 h1{font-size:26px;margin:14px 0 3px;font-weight:800;letter-spacing:.2px}
 .sub{font-size:12.5px;color:var(--muted);letter-spacing:.6px}
 .flag{height:3px;background:linear-gradient(90deg,#FF9933,#fff,#138808);border-radius:4px;margin:14px auto 0;width:180px;box-shadow:0 0 0 1px var(--border)}
 
-.card{background:var(--card);backdrop-filter:blur(20px);padding:32px 30px;border-radius:22px;border:1px solid var(--border);box-shadow:var(--shadow);position:relative;overflow:hidden}
+.card{
+  background:var(--card);backdrop-filter:blur(20px);padding:32px 30px;border-radius:var(--radius-lg);
+  border:1px solid var(--border);box-shadow:var(--shadow);position:relative;overflow:hidden;
+}
 .card:before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--gold))}
 .title{font-size:22px;font-weight:800}
 .desc{font-size:12.5px;color:var(--muted);margin:5px 0 22px}
 
 .group{margin-bottom:18px;position:relative}
-.group input{width:100%;height:54px;border-radius:13px;border:1.5px solid var(--border);background:var(--input);padding:20px 44px 8px;font-size:14.5px;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;font-family:inherit}
-.group input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,59,102,.12)}
-.group label{position:absolute;left:44px;top:17px;color:var(--muted);transition:.2s;background:transparent;font-size:13.5px;pointer-events:none}
-.group input:focus+label,.group input:not(:placeholder-shown)+label{top:6px;font-size:10.5px;color:var(--primary);font-weight:700;letter-spacing:.3px}
+.group input{
+  width:100%;height:54px;border-radius:var(--radius-md);border:1.5px solid var(--border);
+  background:var(--input);padding:20px 44px 8px;font-size:16px;color:var(--text);outline:none;
+  transition:border-color .2s,box-shadow .2s;font-family:inherit;
+}
+.group input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,59,102,.14)}
+.group input:focus-visible{outline:none}
+.group label{
+  position:absolute;left:44px;top:17px;color:var(--muted);transition:.18s;background:transparent;
+  font-size:13.5px;pointer-events:none;
+}
+.group input:focus+label,.group input:not(:placeholder-shown)+label{
+  top:6px;font-size:10.5px;color:var(--primary);font-weight:700;letter-spacing:.3px;
+}
 .group i.left{position:absolute;left:15px;top:19px;color:var(--muted);font-size:.92rem}
-.eye{position:absolute;right:14px;top:18px;border:none;background:none;cursor:pointer;color:var(--muted);padding:4px}
+.group input:focus~i.left{color:var(--primary)}
+.eye{
+  position:absolute;right:6px;top:8px;bottom:8px;width:38px;border:none;background:none;cursor:pointer;
+  color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:9px;
+}
+.eye:hover{color:var(--primary);background:rgba(var(--primary-rgb),.06)}
+.eye:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
 
-.opts{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;margin:6px 0 20px;color:var(--muted)}
-.opts label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.opts{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;margin:6px 0 20px;color:var(--muted);flex-wrap:wrap;gap:8px}
+.check{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
+.check input{
+  appearance:none;-webkit-appearance:none;width:16px;height:16px;border-radius:5px;border:1.6px solid var(--border);
+  background:var(--input);cursor:pointer;position:relative;flex:0 0 auto;transition:.15s;
+}
+.check input:checked{background:var(--primary);border-color:var(--primary)}
+.check input:checked:after{
+  content:"";position:absolute;left:4px;top:0px;width:4px;height:9px;border:solid #fff;
+  border-width:0 2px 2px 0;transform:rotate(45deg);
+}
+.check input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .opts a{text-decoration:none;color:var(--primary);font-weight:600}
-.opts a:hover{text-decoration:underline}
+.opts a:hover,.opts a:focus-visible{text-decoration:underline}
 
-.btn{width:100%;height:52px;border:none;border-radius:13px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-weight:700;font-size:15px;cursor:pointer;transition:.22s;box-shadow:0 14px 30px rgba(13,59,102,.32);font-family:inherit;letter-spacing:.2px}
+.btn{
+  width:100%;height:52px;border:none;border-radius:var(--radius-md);
+  background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-weight:700;font-size:15px;
+  cursor:pointer;transition:.22s;box-shadow:0 14px 30px rgba(13,59,102,.32);font-family:inherit;letter-spacing:.2px;
+  display:flex;align-items:center;justify-content:center;gap:9px;
+}
 .btn:hover{transform:translateY(-2px);filter:brightness(1.07)}
 .btn:active{transform:translateY(0)}
+.btn:focus-visible{outline:2.5px solid var(--gold);outline-offset:2px}
+.btn:disabled{cursor:not-allowed;opacity:.85;transform:none}
 
-.caps{display:none;color:#a6720f;font-size:11.5px;margin-top:6px;font-weight:600}
-.footer{text-align:center;margin-top:20px;font-size:11.5px;color:var(--muted);line-height:1.6}
+.caps{display:none;align-items:center;gap:6px;color:#a6720f;font-size:11.5px;margin-top:7px;font-weight:600}
+[data-theme="dark"] .caps{color:#e0b04a}
+.footer{text-align:center;margin-top:20px;font-size:11.5px;color:var(--muted);line-height:1.7;padding-bottom:4px}
 .footer strong{color:var(--text)}
+.footer .badges{display:flex;justify-content:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.footer .badges span{display:flex;align-items:center;gap:5px;background:var(--card);border:1px solid var(--border);padding:4px 10px;border-radius:20px;font-size:10.5px;font-weight:600;color:var(--muted)}
 
-.alert{padding:11px 14px;border-radius:11px;margin-bottom:16px;font-size:12.5px;display:flex;align-items:center;gap:8px}
+.alert{padding:11px 14px;border-radius:11px;margin-bottom:16px;font-size:12.5px;display:flex;align-items:center;gap:8px;line-height:1.5}
 .alert-success{background:rgba(30,142,79,.1);color:#1a6b3d}
 .alert-danger{background:rgba(198,40,40,.1);color:#9f2020}
 [data-theme="dark"] .alert-success{color:#7fd8a4}
@@ -80,83 +141,159 @@ h1{font-size:26px;margin:14px 0 3px;font-weight:800;letter-spacing:.2px}
 
 @keyframes shake{20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}100%{transform:none}}
 .shake{animation:shake .45s}
-@media(max-width:520px){.card{padding:26px 22px}h1{font-size:22px}.logo{width:70px;height:70px;font-size:28px}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:15px;height:15px;border-radius:50%;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;animation:spin .7s linear infinite;flex:0 0 auto}
+
+/* ── Responsive scale ─────────────────────────────────────────────── */
+@media(min-width:900px){
+  .wrap{max-width:452px}
+  .card{padding:38px 38px}
+}
+@media(max-width:520px){
+  .card{padding:26px 22px}
+  h1{font-size:22px}
+  .logo{width:70px;height:70px;font-size:28px}
+}
+@media(max-width:380px){
+  body{padding-left:14px;padding-right:14px}
+  .card{padding:22px 18px;border-radius:18px}
+  .title{font-size:20px}
+  .group input{height:52px;font-size:15px}
+  .btn{height:50px;font-size:14.5px}
+  .opts{font-size:11.8px}
+}
+/* Short / landscape phones: shrink the branding header so the form + button
+   stay reachable without scrolling past the fold. */
+@media(max-height:680px) and (orientation:landscape){
+  body{align-items:flex-start;padding-top:calc(16px + var(--safe-t))}
+  .header{margin-bottom:10px}
+  .logo{width:52px;height:52px;font-size:22px;border-width:2px}
+  h1{font-size:20px;margin:8px 0 2px}
+  .flag{margin-top:8px}
+  .card{padding:22px 26px}
+  .desc{margin-bottom:16px}
+}
+@media(max-height:560px){
+  .gov-line{display:none}
+  .logo{width:46px;height:46px;font-size:20px}
+  h1{font-size:19px;margin:6px 0 2px}
+  .flag{display:none}
+}
 </style>
 </head>
 <body>
-<div class="gov-strip"></div>
-<button class="theme" onclick="toggleTheme()"><i id="themeIcon" class="fas fa-moon"></i></button>
-<div class="wrap">
-<div class="header">
-<div class="gov-line">उत्तर प्रदेश पुलिस <span>· उत्तर प्रदेश शासन</span></div>
-<div class="logo"><i class="fas fa-shield-halved"></i></div>
-<h1>जेल रिहाई</h1>
-<div class="sub">अभियुक्त एवं अपराध प्रबंधन प्रणाली</div>
-<div class="flag"></div>
-</div>
-<div class="card" id="card">
-<div class="title">स्वागत है</div>
-<div class="desc">सुरक्षित रूप से जारी रखने के लिए साइन इन करें।</div>
+<div class="gov-strip" aria-hidden="true"></div>
+<button class="theme" onclick="toggleTheme()" aria-label="थीम बदलें (डार्क/लाइट मोड)" type="button">
+  <i id="themeIcon" class="fas fa-moon" aria-hidden="true"></i>
+</button>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-{% if messages %}
-{% for cat,msg in messages %}
-<div class="alert alert-{{cat}}"><i class="fas fa-circle-info"></i> {{msg}}</div>
-{% endfor %}
-{% endif %}
-{% endwith %}
+<main class="wrap">
+  <div class="header">
+    <div class="gov-line">उत्तर प्रदेश पुलिस <span>· उत्तर प्रदेश शासन</span></div>
+    <div class="logo" aria-hidden="true"><i class="fas fa-shield-halved"></i></div>
+    <h1>जेल रिहाई</h1>
+    <div class="sub">अभियुक्त एवं अपराध प्रबंधन प्रणाली</div>
+    <div class="flag" aria-hidden="true"></div>
+  </div>
 
-<form method="POST" action="{{ url_for('auth.login') }}" id="loginForm">
-<div class="group">
-<i class="fas fa-id-badge left"></i>
-<input type="text" name="user_id" placeholder=" " required autocomplete="username">
-<label>यूज़र ID</label>
-</div>
+  <div class="card" id="card">
+    <div class="title">स्वागत है</div>
+    <p class="desc">सुरक्षित रूप से जारी रखने के लिए साइन इन करें।</p>
 
-<div class="group">
-<i class="fas fa-lock left"></i>
-<input type="password" id="password" name="password" placeholder=" " required autocomplete="current-password">
-<label>पासवर्ड</label>
-<button type="button" class="eye" onclick="togglePass()"><i id="eye" class="fas fa-eye"></i></button>
-<div class="caps" id="caps"><i class="fas fa-triangle-exclamation"></i> Caps Lock ऑन है</div>
-</div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for cat,msg in messages %}
+    <div class="alert alert-{{cat}}" role="alert"><i class="fas fa-circle-info" aria-hidden="true"></i> {{msg}}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
 
-<div class="opts">
-<label><input type="checkbox"> याद रखें</label>
-<a href="{{ url_for('auth.forgot_password') }}">पासवर्ड भूल गए?</a>
-</div>
+    <form method="POST" action="{{ url_for('auth.login') }}" id="loginForm" novalidate>
+      <div class="group">
+        <i class="fas fa-id-badge left" aria-hidden="true"></i>
+        <input type="text" id="user_id" name="user_id" placeholder=" " required autocomplete="username" autofocus>
+        <label for="user_id">यूज़र ID</label>
+      </div>
 
-<button class="btn" id="btn"><i class="fas fa-right-to-bracket"></i> सुरक्षित लॉगिन</button>
-</form>
-</div>
+      <div class="group">
+        <i class="fas fa-lock left" aria-hidden="true"></i>
+        <input type="password" id="password" name="password" placeholder=" " required autocomplete="current-password">
+        <label for="password">पासवर्ड</label>
+        <button type="button" class="eye" onclick="togglePass()" aria-label="पासवर्ड दिखाएं/छुपाएं">
+          <i id="eye" class="fas fa-eye" aria-hidden="true"></i>
+        </button>
+        <div class="caps" id="caps"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i> Caps Lock ऑन है</div>
+      </div>
 
-<div class="footer">
-<i class="fas fa-lock" style="color:var(--gold-dark)"></i> सुरक्षित सरकारी पोर्टल — अनधिकृत पहुँच वर्जित है।<br>
-<strong>Jail Rehai</strong> © उत्तर प्रदेश पुलिस
-</div>
-</div>
+      <div class="opts">
+        <label class="check"><input type="checkbox" name="remember"> याद रखें</label>
+        <a href="{{ url_for('auth.forgot_password') }}">पासवर्ड भूल गए?</a>
+      </div>
+
+      <button class="btn" id="btn" type="submit">
+        <i class="fas fa-right-to-bracket" aria-hidden="true"></i> सुरक्षित लॉगिन
+      </button>
+    </form>
+  </div>
+
+  <div class="footer">
+    <i class="fas fa-lock" style="color:var(--gold-dark)" aria-hidden="true"></i> सुरक्षित सरकारी पोर्टल — अनधिकृत पहुँच वर्जित है।<br>
+    <strong>Jail Rehai</strong> © उत्तर प्रदेश पुलिस
+    <div class="badges">
+      <span><i class="fas fa-shield" aria-hidden="true"></i> Encrypted</span>
+      <span><i class="fas fa-building-columns" aria-hidden="true"></i> Govt. Portal</span>
+    </div>
+  </div>
+</main>
 
 <script>
-const t=localStorage.getItem("theme")||"light";
-document.documentElement.dataset.theme=t;
-themeIcon.className=t==="dark"?"fas fa-sun":"fas fa-moon";
+(function(){
+  const saved = localStorage.getItem("theme");
+  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const t = saved || (prefersDark ? "dark" : "light");
+  document.documentElement.dataset.theme = t;
+})();
+const themeIcon = document.getElementById("themeIcon");
+themeIcon.className = document.documentElement.dataset.theme === "dark" ? "fas fa-sun" : "fas fa-moon";
+
 function toggleTheme(){
-let n=document.documentElement.dataset.theme==="light"?"dark":"light";
-document.documentElement.dataset.theme=n;
-localStorage.setItem("theme",n);
-themeIcon.className=n==="dark"?"fas fa-sun":"fas fa-moon";
+  const n = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = n;
+  localStorage.setItem("theme", n);
+  themeIcon.className = n === "dark" ? "fas fa-sun" : "fas fa-moon";
 }
+
+const password = document.getElementById("password");
+const eye = document.getElementById("eye");
 function togglePass(){
-let p=password,e=document.getElementById("eye");
-if(p.type==="password"){p.type="text";e.className="fas fa-eye-slash";}
-else{p.type="password";e.className="fas fa-eye";}
+  if (password.type === "password"){ password.type = "text"; eye.className = "fas fa-eye-slash"; }
+  else { password.type = "password"; eye.className = "fas fa-eye"; }
 }
-password.addEventListener("keyup",e=>{
-caps.style.display=e.getModifierState("CapsLock")?"block":"none";
-});
-loginForm.addEventListener("submit",()=>{
-btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Signing In...';
-btn.disabled=true;
+
+const caps = document.getElementById("caps");
+function checkCaps(e){
+  if (typeof e.getModifierState === "function"){
+    caps.style.display = e.getModifierState("CapsLock") ? "flex" : "none";
+  }
+}
+password.addEventListener("keyup", checkCaps);
+password.addEventListener("keydown", checkCaps);
+
+const loginForm = document.getElementById("loginForm");
+const card = document.getElementById("card");
+const btn = document.getElementById("btn");
+loginForm.addEventListener("submit", function(e){
+  const uid = document.getElementById("user_id").value.trim();
+  const pwd = password.value;
+  if (!uid || !pwd){
+    e.preventDefault();
+    card.classList.remove("shake");
+    void card.offsetWidth; /* restart animation */
+    card.classList.add("shake");
+    return;
+  }
+  btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Signing In...';
+  btn.disabled = true;
 });
 </script>
 </body>
